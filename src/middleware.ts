@@ -45,15 +45,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Attach user info to headers
-  const response = NextResponse.next();
-  response.headers.set('x-user-id', payload.userId);
-  response.headers.set('x-user-email', payload.email);
-  response.headers.set('x-user-role', payload.role);
-  response.headers.set('x-tenant-id', payload.tenantId);
-  response.headers.set('x-user-name', payload.name);
+  // Attach user info to headers for downstream components
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-user-id', payload.userId);
+  requestHeaders.set('x-user-email', payload.email);
+  requestHeaders.set('x-user-role', payload.role);
+  requestHeaders.set('x-tenant-id', payload.tenantId);
+  requestHeaders.set('x-user-name', payload.name);
 
-  return response;
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

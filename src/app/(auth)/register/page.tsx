@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setUser } = useAuthStore();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -36,6 +38,8 @@ export default function RegisterPage() {
         return;
       }
 
+      // Sync store before redirecting
+      setUser(data.user);
       router.push('/dashboard');
     } catch {
       setError('Network error. Please try again.');
