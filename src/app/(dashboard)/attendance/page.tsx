@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Clock, Filter, Loader2 } from 'lucide-react';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 interface AttendanceRecord {
   _id: string;
@@ -24,23 +25,55 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AttendancePage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState('');
 
-  useEffect(() => { fetchAttendance(); }, [date, statusFilter]);
+  useEffect(() => { fetchAttendance(); }, [date, statusFilter, user]);
 
   const fetchAttendance = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ date });
       if (statusFilter) params.set('status', statusFilter);
+      if (!isAdmin && user?.employeeId) {
+        params.set('employeeId', user.employeeId);
+      }
+      
       const res = await fetch(`/api/attendance?${params}`);
       const data = await res.json();
       if (data.success) setRecords(data.attendance);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  const handleClockAction = async (action: 'check_in' | 'check_out') => {
+    if (!user?.employeeId || !user?.tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/attendance/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceType: 'web',
+          employeeId: user.employeeId,
+          tenantId: user.tenantId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchAttendance();
+      } else {
+        alert(data.error || 'Failed to record attendance');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const triggerProcessing = async () => {
@@ -59,13 +92,45 @@ export default function AttendancePage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Clock className="w-7 h-7 text-primary-400" /> Attendance
+            <Clock className="w-7 h-7 text-primary-400" /> {isAdmin ? 'Employee Attendance' : 'My Attendance'}
           </h1>
           <p className="text-white/40 text-sm mt-1">{records.length} records for {new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
-        <button onClick={triggerProcessing} className="gradient-primary px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-all">
-          Process Biometric Logs
-        </button>
+        {isAdmin ? (
+          <div className="flex gap-3">
+            <a href="/attendance/terminal" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl text-white text-sm font-medium border border-white/10 transition-all">
+              Open Scanner Terminal
+            </a>
+            <button onClick={triggerProcessing} className="gradient-primary px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-all">
+              Process Biometric Logs
+            </button>
+          </div>
+        ) : (
+          date === new Date().toISOString().split('T')[0] && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleClockAction('check_in')}
+                disabled={loading || records.some(r => r.checkIn)}
+                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2
+                  ${records.some(r => r.checkIn) 
+                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' 
+                    : 'gradient-primary text-white shadow-lg shadow-primary-500/20 active:scale-95'}`}
+              >
+                Clock In
+              </button>
+              <button
+                onClick={() => handleClockAction('check_out')}
+                disabled={loading || !records.some(r => r.checkIn) || records.some(r => r.checkOut)}
+                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2
+                  ${(!records.some(r => r.checkIn) || records.some(r => r.checkOut))
+                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                    : 'bg-white/10 text-white hover:bg-white/20 border border-white/10 active:scale-95'}`}
+              >
+                Clock Out
+              </button>
+            </div>
+          )
+        )}
       </div>
 
       {/* Filters */}
@@ -110,7 +175,7 @@ export default function AttendancePage() {
                     <td className="py-3 px-4 text-sm text-primary-400 font-mono">{r.employeeId}</td>
                     <td className="py-3 px-4 text-sm text-white/70">{formatTime(r.checkIn)}</td>
                     <td className="py-3 px-4 text-sm text-white/70">{formatTime(r.checkOut)}</td>
-                    <td className="py-3 px-4 text-sm text-white/60">{r.workingHours?.toFixed(1) || '0'}h</td>
+                    <td className="py-3 px-4 text-sm text-white/60">{Number(r.workingHours || 0).toFixed(1)}h</td>
                     <td className="py-3 px-4">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[r.status] || ''}`}>{r.status}</span>
                     </td>

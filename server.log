@@ -1,0 +1,1174 @@
+
+> hr-management-system@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.139:3000
+- Environments: .env
+✓ Ready in 390ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+🚀 Biometric Sync Worker initialized (every 30m)
+
+ GET /leave 200 in 574ms (next.js: 212ms, proxy.ts: 107ms, application-code: 254ms)
+ GET /api/auth/me 200 in 103ms (next.js: 67ms, proxy.ts: 9ms, application-code: 26ms)
+ GET /api/leave? 200 in 69ms (next.js: 33ms, proxy.ts: 5ms, application-code: 31ms)
+ GET /api/leave? 200 in 18ms (next.js: 5ms, proxy.ts: 6ms, application-code: 7ms)
+ GET /employees 200 in 105ms (next.js: 29ms, proxy.ts: 8ms, application-code: 68ms)
+ GET /api/auth/me 200 in 19ms (next.js: 6ms, proxy.ts: 6ms, application-code: 7ms)
+ GET /api/employees?search= 200 in 110ms (next.js: 89ms, proxy.ts: 6ms, application-code: 15ms)
+ GET /api/employees?search= 200 in 18ms (next.js: 5ms, proxy.ts: 6ms, application-code: 7ms)
+ GET /employees 200 in 78ms (next.js: 8ms, proxy.ts: 7ms, application-code: 63ms)
+ GET /api/auth/me 200 in 17ms (next.js: 5ms, proxy.ts: 6ms, application-code: 6ms)
+ GET /api/employees?search= 200 in 19ms (next.js: 3ms, proxy.ts: 9ms, application-code: 7ms)
+ GET /api/employees?search= 200 in 15ms (next.js: 3ms, proxy.ts: 5ms, application-code: 7ms)
+ GET /attendance 200 in 85ms (next.js: 23ms, proxy.ts: 5ms, application-code: 57ms)
+ GET /api/auth/me 200 in 16ms (next.js: 3ms, proxy.ts: 6ms, application-code: 7ms)
+ GET /api/attendance?date=2026-03-31 200 in 45ms (next.js: 32ms, proxy.ts: 4ms, application-code: 8ms)
+ GET /api/attendance?date=2026-03-31 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+ POST /api/attendance/process 200 in 61ms (next.js: 35ms, proxy.ts: 9ms, application-code: 17ms)
+ GET /api/attendance?date=2026-03-31 200 in 30ms (next.js: 9ms, proxy.ts: 7ms, application-code: 13ms)
+ GET /dashboard 200 in 239ms (next.js: 38ms, proxy.ts: 6ms, application-code: 195ms)
+ GET /api/auth/me 200 in 17ms (next.js: 4ms, proxy.ts: 6ms, application-code: 7ms)
+ GET /api/dashboard 200 in 70ms (next.js: 33ms, proxy.ts: 5ms, application-code: 32ms)
+ GET /api/dashboard 200 in 22ms (next.js: 3ms, proxy.ts: 5ms, application-code: 14ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+✓ Compiled in 486ms
+ POST /api/auth/login 401 in 79ms (next.js: 53ms, proxy.ts: 7ms, application-code: 19ms)
+ POST /api/auth/login 200 in 416ms (next.js: 3ms, proxy.ts: 4ms, application-code: 408ms)
+🏢 Initialized tenant: University of KEKA (localhost)
+❌ Query error: {
+  error: error: duplicate key value violates unique constraint "Employee_universityId_key"
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async handleFaculty (src/app/api/universal/hr/route.ts:114:22)
+      at async POST (src/app/api/universal/hr/route.ts:22:16)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 231,
+    severity: 'ERROR',
+    code: '23505',
+    detail: 'Key ("universityId")=(FAC-101) already exists.',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'public',
+    table: 'Employee',
+    column: undefined,
+    dataType: undefined,
+    constraint: 'Employee_universityId_key',
+    file: 'nbtinsert.c',
+    line: '666',
+    routine: '_bt_check_unique'
+  },
+  text: 'INSERT INTO "Employee"\n' +
+    '         (id, "universityId", "userId", "firstName", "lastName", designation,'
+}
+Universal HR error: error: duplicate key value violates unique constraint "Employee_universityId_key"
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async handleFaculty (src/app/api/universal/hr/route.ts:114:22)
+    at async POST (src/app/api/universal/hr/route.ts:22:16)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 231,
+  severity: 'ERROR',
+  code: '23505',
+  detail: 'Key ("universityId")=(FAC-101) already exists.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'Employee',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'Employee_universityId_key',
+  file: 'nbtinsert.c',
+  line: '666',
+  routine: '_bt_check_unique'
+}
+ POST /api/universal/hr 500 in 413ms (next.js: 31ms, proxy.ts: 6ms, application-code: 376ms)
+ GET /api/universal/hr?tenantId=keka&module=faculty 200 in 20ms (next.js: 3ms, proxy.ts: 5ms, application-code: 12ms)
+❌ Query error: {
+  error: error: column "isActive" of relation "Intern" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async handleInterns (src/app/api/universal/hr/route.ts:177:22)
+      at async POST (src/app/api/universal/hr/route.ts:24:16)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 128,
+    severity: 'ERROR',
+    code: '42703',
+    detail: undefined,
+    hint: undefined,
+    position: '183',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_target.c',
+    line: '1068',
+    routine: 'checkInsertTargets'
+  },
+  text: 'INSERT INTO "Intern"\n' +
+    '         (id, "tenantId", "firstName", "lastName", email, phone,\n' +
+    '          univ'
+}
+Universal HR error: error: column "isActive" of relation "Intern" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async handleInterns (src/app/api/universal/hr/route.ts:177:22)
+    at async POST (src/app/api/universal/hr/route.ts:24:16)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 128,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '183',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1068',
+  routine: 'checkInsertTargets'
+}
+ POST /api/universal/hr 500 in 203ms (next.js: 3ms, proxy.ts: 5ms, application-code: 195ms)
+ GET /api/universal/hr?tenantId=keka&module=interns 200 in 17ms (next.js: 3ms, proxy.ts: 4ms, application-code: 9ms)
+❌ Query error: {
+  error: error: insert or update on table "Attendance" violates foreign key constraint "Attendance_deviceId_fkey"
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async handleAttendance (src/app/api/universal/hr/route.ts:237:22)
+      at async POST (src/app/api/universal/hr/route.ts:26:16)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 286,
+    severity: 'ERROR',
+    code: '23503',
+    detail: 'Key (deviceId)=(Manual Entry) is not present in table "BiometricDevice".',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'public',
+    table: 'Attendance',
+    column: undefined,
+    dataType: undefined,
+    constraint: 'Attendance_deviceId_fkey',
+    file: 'ri_triggers.c',
+    line: '2772',
+    routine: 'ri_ReportViolation'
+  },
+  text: 'INSERT INTO "Attendance"\n' +
+    '         (id, "universityId", "deviceId", "checkIn", "checkOut", status, "d'
+}
+Universal HR error: error: insert or update on table "Attendance" violates foreign key constraint "Attendance_deviceId_fkey"
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async handleAttendance (src/app/api/universal/hr/route.ts:237:22)
+    at async POST (src/app/api/universal/hr/route.ts:26:16)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 286,
+  severity: 'ERROR',
+  code: '23503',
+  detail: 'Key (deviceId)=(Manual Entry) is not present in table "BiometricDevice".',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'Attendance',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'Attendance_deviceId_fkey',
+  file: 'ri_triggers.c',
+  line: '2772',
+  routine: 'ri_ReportViolation'
+}
+ POST /api/universal/hr 500 in 179ms (next.js: 2ms, proxy.ts: 4ms, application-code: 173ms)
+ GET /api/universal/hr?tenantId=keka&module=attendance 200 in 17ms (next.js: 3ms, proxy.ts: 4ms, application-code: 11ms)
+ POST /api/universal/hr 200 in 16ms (next.js: 3ms, proxy.ts: 4ms, application-code: 9ms)
+ GET /api/universal/hr?tenantId=keka&module=leave 200 in 12ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+ POST /api/universal/hr 200 in 15ms (next.js: 2ms, proxy.ts: 5ms, application-code: 8ms)
+ GET /api/universal/hr?tenantId=keka&module=documents 200 in 12ms (next.js: 3ms, proxy.ts: 3ms, application-code: 6ms)
+ GET /api/universal/hr?tenantId=keka&module=dashboard 200 in 21ms (next.js: 3ms, proxy.ts: 3ms, application-code: 15ms)
+ GET /dashboard 200 in 112ms (next.js: 6ms, proxy.ts: 6ms, application-code: 99ms)
+ GET /api/auth/me 200 in 19ms (next.js: 4ms, proxy.ts: 8ms, application-code: 7ms)
+ GET /api/dashboard 200 in 43ms (next.js: 4ms, proxy.ts: 7ms, application-code: 32ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /api/dashboard 200 in 34ms (next.js: 5ms, proxy.ts: 5ms, application-code: 24ms)
+ GET /attendance 200 in 73ms (next.js: 7ms, proxy.ts: 5ms, application-code: 61ms)
+ GET /api/auth/me 200 in 19ms (next.js: 6ms, proxy.ts: 7ms, application-code: 6ms)
+ GET /api/attendance?date=2026-03-31 200 in 18ms (next.js: 4ms, proxy.ts: 5ms, application-code: 9ms)
+ GET /api/attendance?date=2026-03-31 200 in 28ms (next.js: 4ms, proxy.ts: 6ms, application-code: 18ms)
+[browser] Uncaught TypeError: r.workingHours?.toFixed is not a function
+    at <unknown> (src/app/(dashboard)/attendance/page.tsx:113:86)
+    at Array.map (<anonymous>)
+    at AttendancePage (src/app/(dashboard)/attendance/page.tsx:108:26)
+  111 | ...-4 text-sm text-white/70">{formatTime(r.checkIn)}</td>
+  112 | ...-4 text-sm text-white/70">{formatTime(r.checkOut)}</td>
+> 113 | ...-4 text-sm text-white/60">{r.workingHours?.toFixed(1) || '0'}h</td>
+      |                                               ^
+  114 | ...-4">
+  115 | ...line-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[r.sta...
+  116 | ...
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 57ms
+ GET /attendance 200 in 131ms (next.js: 13ms, proxy.ts: 11ms, application-code: 107ms)
+ GET /api/auth/me 200 in 23ms (next.js: 6ms, proxy.ts: 8ms, application-code: 9ms)
+ GET /api/attendance?date=2026-03-31 200 in 54ms (next.js: 12ms, proxy.ts: 19ms, application-code: 23ms)
+ GET /api/attendance?date=2026-03-31 200 in 16ms (next.js: 4ms, proxy.ts: 6ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /attendance 200 in 83ms (next.js: 8ms, proxy.ts: 4ms, application-code: 70ms)
+ GET /api/auth/me 200 in 23ms (next.js: 3ms, proxy.ts: 12ms, application-code: 8ms)
+ GET /api/attendance?date=2026-03-31 200 in 25ms (next.js: 5ms, proxy.ts: 6ms, application-code: 15ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/attendance?date=2026-03-31 200 in 27ms (next.js: 5ms, proxy.ts: 6ms, application-code: 16ms)
+ GET /leave 200 in 76ms (next.js: 5ms, proxy.ts: 5ms, application-code: 67ms)
+ GET /api/auth/me 200 in 23ms (next.js: 6ms, proxy.ts: 9ms, application-code: 8ms)
+ GET /api/leave? 200 in 22ms (next.js: 5ms, proxy.ts: 6ms, application-code: 11ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from LeavePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/leave? 200 in 32ms (next.js: 6ms, proxy.ts: 7ms, application-code: 19ms)
+ GET /payroll 200 in 71ms (next.js: 19ms, proxy.ts: 3ms, application-code: 48ms)
+ GET /api/auth/me 200 in 15ms (next.js: 5ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/payroll?month=3&year=2026 200 in 57ms (next.js: 40ms, proxy.ts: 3ms, application-code: 14ms)
+ GET /api/payroll?month=3&year=2026 200 in 18ms (next.js: 5ms, proxy.ts: 5ms, application-code: 8ms)
+ GET /reports 200 in 83ms (next.js: 25ms, proxy.ts: 4ms, application-code: 55ms)
+ GET /api/auth/me 200 in 15ms (next.js: 3ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /biometric 200 in 98ms (next.js: 27ms, proxy.ts: 5ms, application-code: 66ms)
+ GET /api/auth/me 200 in 20ms (next.js: 5ms, proxy.ts: 8ms, application-code: 7ms)
+ GET /reports 200 in 99ms (next.js: 9ms, proxy.ts: 7ms, application-code: 83ms)
+ GET /api/auth/me 200 in 25ms (next.js: 6ms, proxy.ts: 10ms, application-code: 8ms)
+ GET /payroll 200 in 87ms (next.js: 4ms, proxy.ts: 4ms, application-code: 78ms)
+ GET /api/auth/me 200 in 15ms (next.js: 4ms, proxy.ts: 7ms, application-code: 5ms)
+ GET /api/payroll?month=3&year=2026 200 in 18ms (next.js: 3ms, proxy.ts: 4ms, application-code: 11ms)
+ GET /api/payroll?month=3&year=2026 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /attendance 200 in 73ms (next.js: 5ms, proxy.ts: 7ms, application-code: 61ms)
+ GET /api/auth/me 200 in 14ms (next.js: 3ms, proxy.ts: 7ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 12ms (next.js: 2ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /api/attendance?date=2026-03-31 200 in 14ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /dashboard 200 in 73ms (next.js: 5ms, proxy.ts: 5ms, application-code: 63ms)
+ GET /api/auth/me 200 in 25ms (next.js: 5ms, proxy.ts: 7ms, application-code: 13ms)
+ GET /api/dashboard 200 in 42ms (next.js: 4ms, proxy.ts: 6ms, application-code: 32ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /api/dashboard 200 in 38ms (next.js: 5ms, proxy.ts: 7ms, application-code: 26ms)
+ GET /employees 200 in 52ms (next.js: 4ms, proxy.ts: 4ms, application-code: 45ms)
+ GET /api/auth/me 200 in 12ms (next.js: 3ms, proxy.ts: 5ms, application-code: 4ms)
+ GET /api/employees?search= 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 7ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/employees?search= 200 in 21ms (next.js: 4ms, proxy.ts: 5ms, application-code: 11ms)
+ PUT /api/employees 400 in 22ms (next.js: 5ms, proxy.ts: 9ms, application-code: 8ms)
+ PUT /api/employees 400 in 16ms (next.js: 4ms, proxy.ts: 5ms, application-code: 7ms)
+ PUT /api/employees 400 in 15ms (next.js: 4ms, proxy.ts: 5ms, application-code: 7ms)
+ PUT /api/employees 400 in 14ms (next.js: 4ms, proxy.ts: 4ms, application-code: 6ms)
+ PUT /api/employees 400 in 16ms (next.js: 4ms, proxy.ts: 6ms, application-code: 7ms)
+ PUT /api/employees 400 in 15ms (next.js: 4ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /payroll 200 in 68ms (next.js: 4ms, proxy.ts: 5ms, application-code: 59ms)
+ GET /api/auth/me 200 in 15ms (next.js: 3ms, proxy.ts: 6ms, application-code: 6ms)
+ GET /api/payroll?month=3&year=2026 200 in 17ms (next.js: 4ms, proxy.ts: 3ms, application-code: 10ms)
+ GET /api/payroll?month=3&year=2026 200 in 14ms (next.js: 4ms, proxy.ts: 4ms, application-code: 7ms)
+ POST /api/payroll 200 in 37ms (next.js: 4ms, proxy.ts: 7ms, application-code: 27ms)
+ GET /api/payroll?month=3&year=2026 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /employees 200 in 82ms (next.js: 5ms, proxy.ts: 5ms, application-code: 72ms)
+ GET /api/auth/me 200 in 14ms (next.js: 5ms, proxy.ts: 4ms, application-code: 5ms)
+ GET /api/employees?search= 200 in 18ms (next.js: 4ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /api/employees?search= 200 in 14ms (next.js: 2ms, proxy.ts: 6ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /dashboard 200 in 80ms (next.js: 5ms, proxy.ts: 5ms, application-code: 70ms)
+ GET /api/auth/me 200 in 20ms (next.js: 5ms, proxy.ts: 8ms, application-code: 7ms)
+ GET /api/dashboard 200 in 37ms (next.js: 4ms, proxy.ts: 6ms, application-code: 28ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /api/dashboard 200 in 50ms (next.js: 6ms, proxy.ts: 16ms, application-code: 28ms)
+ GET /payroll 200 in 48ms (next.js: 3ms, proxy.ts: 3ms, application-code: 42ms)
+ GET /api/auth/me 200 in 15ms (next.js: 3ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/payroll?month=3&year=2026 200 in 13ms (next.js: 3ms, proxy.ts: 3ms, application-code: 7ms)
+ GET /api/payroll?month=3&year=2026 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /documents 200 in 79ms (next.js: 21ms, proxy.ts: 3ms, application-code: 55ms)
+ GET /api/auth/me 200 in 15ms (next.js: 4ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/documents? 200 in 44ms (next.js: 34ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /api/documents? 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 5ms)
+ GET /reports 200 in 62ms (next.js: 3ms, proxy.ts: 3ms, application-code: 56ms)
+ GET /api/auth/me 200 in 17ms (next.js: 6ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /dashboard 200 in 86ms (next.js: 5ms, proxy.ts: 7ms, application-code: 75ms)
+ GET /api/auth/me 200 in 18ms (next.js: 5ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /api/dashboard 200 in 37ms (next.js: 12ms, proxy.ts: 6ms, application-code: 19ms)
+ GET /api/dashboard 200 in 34ms (next.js: 5ms, proxy.ts: 7ms, application-code: 22ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /employees 200 in 59ms (next.js: 5ms, proxy.ts: 6ms, application-code: 49ms)
+ GET /api/auth/me 200 in 15ms (next.js: 5ms, proxy.ts: 5ms, application-code: 4ms)
+ GET /api/employees?search= 200 in 12ms (next.js: 2ms, proxy.ts: 4ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/employees?search= 200 in 14ms (next.js: 3ms, proxy.ts: 5ms, application-code: 7ms)
+ GET /dashboard 200 in 70ms (next.js: 5ms, proxy.ts: 5ms, application-code: 61ms)
+ GET /api/auth/me 200 in 15ms (next.js: 5ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/dashboard 200 in 18ms (next.js: 3ms, proxy.ts: 3ms, application-code: 12ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /api/dashboard 200 in 27ms (next.js: 3ms, proxy.ts: 4ms, application-code: 20ms)
+ GET /employees 200 in 67ms (next.js: 4ms, proxy.ts: 5ms, application-code: 58ms)
+ GET /api/auth/me 200 in 18ms (next.js: 5ms, proxy.ts: 7ms, application-code: 6ms)
+ GET /api/employees?search= 200 in 27ms (next.js: 12ms, proxy.ts: 7ms, application-code: 8ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/employees?search= 200 in 24ms (next.js: 5ms, proxy.ts: 5ms, application-code: 14ms)
+ GET /attendance 200 in 70ms (next.js: 5ms, proxy.ts: 5ms, application-code: 61ms)
+ GET /api/auth/me 200 in 15ms (next.js: 3ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 12ms (next.js: 2ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /api/attendance?date=2026-03-31 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /leave 200 in 52ms (next.js: 4ms, proxy.ts: 4ms, application-code: 44ms)
+ GET /api/auth/me 200 in 13ms (next.js: 3ms, proxy.ts: 6ms, application-code: 4ms)
+ GET /api/leave? 200 in 15ms (next.js: 4ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /api/leave? 200 in 14ms (next.js: 3ms, proxy.ts: 5ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from LeavePage. See https://react.dev/link/warning-keys for more information. 
+ GET /leave 200 in 66ms (next.js: 4ms, proxy.ts: 5ms, application-code: 57ms)
+ GET /api/auth/me 200 in 13ms (next.js: 4ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/leave? 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /api/leave? 200 in 21ms (next.js: 3ms, proxy.ts: 5ms, application-code: 13ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from LeavePage. See https://react.dev/link/warning-keys for more information. 
+ GET /payroll 200 in 50ms (next.js: 3ms, proxy.ts: 3ms, application-code: 43ms)
+ GET /api/auth/me 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/payroll?month=3&year=2026 200 in 14ms (next.js: 3ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /api/payroll?month=3&year=2026 200 in 13ms (next.js: 2ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /documents 200 in 79ms (next.js: 5ms, proxy.ts: 7ms, application-code: 67ms)
+ GET /api/auth/me 200 in 22ms (next.js: 5ms, proxy.ts: 7ms, application-code: 10ms)
+ GET /api/documents? 200 in 22ms (next.js: 5ms, proxy.ts: 7ms, application-code: 10ms)
+ GET /api/documents? 200 in 19ms (next.js: 4ms, proxy.ts: 6ms, application-code: 9ms)
+ GET /reports 200 in 77ms (next.js: 4ms, proxy.ts: 5ms, application-code: 68ms)
+ GET /api/auth/me 200 in 19ms (next.js: 5ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /biometric 200 in 85ms (next.js: 7ms, proxy.ts: 9ms, application-code: 68ms)
+ GET /api/auth/me 200 in 14ms (next.js: 4ms, proxy.ts: 5ms, application-code: 5ms)
+🔌 Connecting to Biometric Device at 192.168.1.180:4370...
+ok tcp
+ GET /attendance 200 in 61ms (next.js: 4ms, proxy.ts: 4ms, application-code: 53ms)
+ POST /api/biometric/sync 200 in 4.4s (next.js: 41ms, proxy.ts: 7ms, application-code: 4.4s)
+ GET /api/auth/me 200 in 14ms (next.js: 3ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 12ms (next.js: 2ms, proxy.ts: 4ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /employees 200 in 52ms (next.js: 3ms, proxy.ts: 3ms, application-code: 45ms)
+ GET /api/auth/me 200 in 17ms (next.js: 4ms, proxy.ts: 7ms, application-code: 6ms)
+ GET /api/employees?search= 200 in 12ms (next.js: 3ms, proxy.ts: 4ms, application-code: 5ms)
+ GET /api/employees?search= 200 in 15ms (next.js: 3ms, proxy.ts: 4ms, application-code: 8ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /dashboard 200 in 56ms (next.js: 8ms, proxy.ts: 4ms, application-code: 44ms)
+ GET /api/auth/me 200 in 14ms (next.js: 4ms, proxy.ts: 6ms, application-code: 4ms)
+ GET /api/dashboard 200 in 27ms (next.js: 2ms, proxy.ts: 4ms, application-code: 20ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /api/dashboard 200 in 23ms (next.js: 3ms, proxy.ts: 5ms, application-code: 16ms)
+📥 Retrieved 28140 logs from device.
+ GET /attendance 200 in 66ms (next.js: 4ms, proxy.ts: 6ms, application-code: 56ms)
+ GET /api/auth/me 200 in 16ms (next.js: 4ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 15ms (next.js: 3ms, proxy.ts: 5ms, application-code: 7ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/attendance?date=2026-03-31 200 in 15ms (next.js: 4ms, proxy.ts: 4ms, application-code: 7ms)
+ GET /leave 200 in 58ms (next.js: 4ms, proxy.ts: 4ms, application-code: 50ms)
+ GET /api/auth/me 200 in 26ms (next.js: 3ms, proxy.ts: 18ms, application-code: 5ms)
+ GET /api/leave? 200 in 16ms (next.js: 4ms, proxy.ts: 6ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from LeavePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/leave? 200 in 15ms (next.js: 4ms, proxy.ts: 4ms, application-code: 7ms)
+ GET /payroll 200 in 53ms (next.js: 4ms, proxy.ts: 4ms, application-code: 45ms)
+ GET /api/auth/me 200 in 16ms (next.js: 5ms, proxy.ts: 7ms, application-code: 4ms)
+ GET /api/payroll?month=3&year=2026 200 in 19ms (next.js: 5ms, proxy.ts: 6ms, application-code: 8ms)
+ GET /api/payroll?month=3&year=2026 200 in 17ms (next.js: 5ms, proxy.ts: 5ms, application-code: 7ms)
+ GET /documents 200 in 55ms (next.js: 4ms, proxy.ts: 5ms, application-code: 45ms)
+ GET /api/auth/me 200 in 14ms (next.js: 4ms, proxy.ts: 5ms, application-code: 4ms)
+ GET /api/documents? 200 in 14ms (next.js: 4ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /api/documents? 200 in 15ms (next.js: 4ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /dashboard 200 in 67ms (next.js: 4ms, proxy.ts: 6ms, application-code: 57ms)
+ GET /api/auth/me 200 in 17ms (next.js: 3ms, proxy.ts: 8ms, application-code: 5ms)
+ GET /api/dashboard 200 in 30ms (next.js: 4ms, proxy.ts: 5ms, application-code: 21ms)
+ GET /api/dashboard 200 in 19ms (next.js: 4ms, proxy.ts: 4ms, application-code: 11ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /attendance 200 in 58ms (next.js: 4ms, proxy.ts: 5ms, application-code: 49ms)
+ GET /api/auth/me 200 in 16ms (next.js: 3ms, proxy.ts: 8ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 15ms (next.js: 3ms, proxy.ts: 6ms, application-code: 6ms)
+ GET /api/attendance?date=2026-03-31 200 in 14ms (next.js: 4ms, proxy.ts: 5ms, application-code: 5ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /attendance 200 in 57ms (next.js: 4ms, proxy.ts: 5ms, application-code: 48ms)
+ GET /api/auth/me 200 in 19ms (next.js: 5ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /api/attendance?date=2026-03-31 200 in 14ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/attendance?date=2026-03-31 200 in 17ms (next.js: 4ms, proxy.ts: 6ms, application-code: 8ms)
+ GET /leave 200 in 54ms (next.js: 3ms, proxy.ts: 5ms, application-code: 45ms)
+ GET /api/auth/me 200 in 18ms (next.js: 5ms, proxy.ts: 7ms, application-code: 6ms)
+ GET /api/leave? 200 in 16ms (next.js: 4ms, proxy.ts: 6ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from LeavePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/leave? 200 in 21ms (next.js: 4ms, proxy.ts: 5ms, application-code: 12ms)
+ GET /payroll 200 in 63ms (next.js: 6ms, proxy.ts: 5ms, application-code: 52ms)
+ GET /api/auth/me 200 in 15ms (next.js: 3ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/payroll?month=3&year=2026 200 in 14ms (next.js: 3ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /api/payroll?month=3&year=2026 200 in 14ms (next.js: 4ms, proxy.ts: 4ms, application-code: 6ms)
+ GET /documents 200 in 68ms (next.js: 5ms, proxy.ts: 7ms, application-code: 56ms)
+ GET /api/auth/me 200 in 15ms (next.js: 4ms, proxy.ts: 7ms, application-code: 4ms)
+ GET /api/documents? 200 in 14ms (next.js: 4ms, proxy.ts: 5ms, application-code: 6ms)
+ GET /api/documents? 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /dashboard 200 in 59ms (next.js: 4ms, proxy.ts: 5ms, application-code: 51ms)
+ GET /api/auth/me 200 in 14ms (next.js: 3ms, proxy.ts: 6ms, application-code: 5ms)
+ GET /api/dashboard 200 in 20ms (next.js: 3ms, proxy.ts: 5ms, application-code: 12ms)
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+ GET /api/dashboard 200 in 32ms (next.js: 5ms, proxy.ts: 6ms, application-code: 20ms)
+ GET /employees 200 in 59ms (next.js: 3ms, proxy.ts: 4ms, application-code: 51ms)
+ GET /api/auth/me 200 in 17ms (next.js: 4ms, proxy.ts: 8ms, application-code: 5ms)
+ GET /api/employees?search= 200 in 15ms (next.js: 3ms, proxy.ts: 7ms, application-code: 5ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/employees?search= 200 in 15ms (next.js: 3ms, proxy.ts: 5ms, application-code: 7ms)
+ POST /api/employees 201 in 46ms (next.js: 5ms, proxy.ts: 10ms, application-code: 31ms)
+ GET /api/employees?search= 200 in 23ms (next.js: 5ms, proxy.ts: 8ms, application-code: 10ms)
+ GET /employees 200 in 78ms (next.js: 5ms, proxy.ts: 6ms, application-code: 68ms)
+ GET /api/auth/me 200 in 24ms (next.js: 5ms, proxy.ts: 9ms, application-code: 10ms)
+ GET /api/employees?search= 200 in 22ms (next.js: 6ms, proxy.ts: 7ms, application-code: 9ms)
+ GET /api/employees?search= 200 in 29ms (next.js: 6ms, proxy.ts: 6ms, application-code: 16ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /employees 200 in 83ms (next.js: 8ms, proxy.ts: 7ms, application-code: 68ms)
+ GET /api/auth/me 200 in 19ms (next.js: 6ms, proxy.ts: 8ms, application-code: 5ms)
+ GET /api/employees?search= 200 in 17ms (next.js: 3ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /api/employees?search= 200 in 17ms (next.js: 4ms, proxy.ts: 5ms, application-code: 8ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /attendance 200 in 70ms (next.js: 5ms, proxy.ts: 4ms, application-code: 61ms)
+ GET /api/auth/me 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 14ms (next.js: 2ms, proxy.ts: 5ms, application-code: 6ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/attendance?date=2026-03-31 200 in 15ms (next.js: 4ms, proxy.ts: 4ms, application-code: 8ms)
+ GET /employees 200 in 63ms (next.js: 5ms, proxy.ts: 4ms, application-code: 54ms)
+ GET /api/auth/me 200 in 13ms (next.js: 4ms, proxy.ts: 5ms, application-code: 4ms)
+ GET /api/employees?search= 200 in 12ms (next.js: 2ms, proxy.ts: 4ms, application-code: 5ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /api/employees?search= 200 in 18ms (next.js: 3ms, proxy.ts: 5ms, application-code: 10ms)
+ GET /attendance 200 in 63ms (next.js: 5ms, proxy.ts: 4ms, application-code: 54ms)
+ GET /api/auth/me 200 in 13ms (next.js: 4ms, proxy.ts: 6ms, application-code: 4ms)
+ GET /api/attendance?date=2026-03-31 200 in 11ms (next.js: 2ms, proxy.ts: 4ms, application-code: 5ms)
+ GET /api/attendance?date=2026-03-31 200 in 13ms (next.js: 3ms, proxy.ts: 4ms, application-code: 5ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from AttendancePage. See https://react.dev/link/warning-keys for more information. 
+ GET /payroll 200 in 64ms (next.js: 4ms, proxy.ts: 5ms, application-code: 54ms)
+ GET /api/auth/me 200 in 27ms (next.js: 5ms, proxy.ts: 15ms, application-code: 7ms)
+ GET /api/payroll?month=3&year=2026 200 in 18ms (next.js: 4ms, proxy.ts: 6ms, application-code: 8ms)
+ GET /api/payroll?month=3&year=2026 200 in 20ms (next.js: 5ms, proxy.ts: 7ms, application-code: 9ms)
+ GET /employees 200 in 68ms (next.js: 4ms, proxy.ts: 5ms, application-code: 60ms)
+ GET /api/auth/me 200 in 18ms (next.js: 4ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /api/employees?search= 200 in 25ms (next.js: 6ms, proxy.ts: 8ms, application-code: 12ms)
+ GET /api/employees?search= 200 in 21ms (next.js: 4ms, proxy.ts: 7ms, application-code: 10ms)
+[browser] Each child in a list should have a unique "key" prop.
+
+Check the render method of `tbody`. It was passed a child from EmployeesPage. See https://react.dev/link/warning-keys for more information. 
+ GET /payroll 200 in 83ms (next.js: 5ms, proxy.ts: 4ms, application-code: 74ms)
+ GET /api/auth/me 200 in 19ms (next.js: 5ms, proxy.ts: 7ms, application-code: 7ms)
+ GET /api/payroll?month=3&year=2026 200 in 23ms (next.js: 5ms, proxy.ts: 7ms, application-code: 11ms)
+ GET /api/payroll?month=3&year=2026 200 in 20ms (next.js: 6ms, proxy.ts: 5ms, application-code: 9ms)
+ GET /documents 200 in 72ms (next.js: 4ms, proxy.ts: 6ms, application-code: 62ms)
+ GET /api/auth/me 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/documents? 200 in 13ms (next.js: 3ms, proxy.ts: 5ms, application-code: 5ms)
+ GET /api/documents? 200 in 13ms (next.js: 4ms, proxy.ts: 4ms, application-code: 5ms)
+ POST /api/auth/logout 200 in 45ms (next.js: 33ms, proxy.ts: 5ms, application-code: 8ms)
+ GET /login 200 in 103ms (next.js: 26ms, proxy.ts: 4ms, application-code: 72ms)
+ GET /login 200 in 46ms (next.js: 8ms, proxy.ts: 6ms, application-code: 32ms)
+ GET /register 200 in 104ms (next.js: 24ms, proxy.ts: 4ms, application-code: 75ms)
+🕒 Starting scheduled biometric sync...
+🔌 Connecting to Biometric Device at 192.168.1.180:4370...
+ok tcp
+📥 Retrieved 28141 logs from device.
+⚠️ Slow query: {
+  duration: '320887ms',
+  text: 'INSERT INTO biometric_logs (device_user_id, timestamp, raw_data, device_id, tenant_id, status, proce'
+}
+✅ Scheduled biometric sync completed.
+[2026-03-31T10:35:15.689Z] [PID: 19675] [32m[NODE-CRON][32m [33m[WARN][0m missed execution at Tue Mar 31 2026 16:00:00 GMT+0530 (India Standard Time)! Possible blocking IO or high CPU user at the same process used by node-cron.
+ GET /register 200 in 220ms (next.js: 53ms, proxy.ts: 65ms, application-code: 102ms)
+ GET /register 200 in 63ms (next.js: 3ms, proxy.ts: 2ms, application-code: 58ms)
+ GET /register 200 in 39ms (next.js: 4ms, proxy.ts: 3ms, application-code: 32ms)
+ POST /api/auth/login 200 in 466ms (next.js: 73ms, proxy.ts: 3ms, application-code: 391ms)
+ POST /api/auth/login 200 in 271ms (next.js: 2ms, proxy.ts: 2ms, application-code: 266ms)
+ GET /api/dashboard 200 in 52ms (next.js: 30ms, proxy.ts: 3ms, application-code: 20ms)
+❌ Query error: {
+  error: error: relation "Tenant" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+      at async GET (src/app/api/universal/hr/route.ts:57:20)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 105,
+    severity: 'ERROR',
+    code: '42P01',
+    detail: undefined,
+    hint: undefined,
+    position: '15',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '1466',
+    routine: 'parserOpenTable'
+  },
+  text: 'SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1'
+}
+Universal HR GET error: error: relation "Tenant" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+    at async GET (src/app/api/universal/hr/route.ts:57:20)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 105,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '15',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1466',
+  routine: 'parserOpenTable'
+}
+ GET /api/universal/hr?tenantId=localhost&module=faculty 500 in 211ms (next.js: 34ms, proxy.ts: 3ms, application-code: 174ms)
+❌ Query error: {
+  error: error: relation "Tenant" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+      at async GET (src/app/api/universal/hr/route.ts:57:20)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 105,
+    severity: 'ERROR',
+    code: '42P01',
+    detail: undefined,
+    hint: undefined,
+    position: '15',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '1466',
+    routine: 'parserOpenTable'
+  },
+  text: 'SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1'
+}
+Universal HR GET error: error: relation "Tenant" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+    at async GET (src/app/api/universal/hr/route.ts:57:20)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 105,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '15',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1466',
+  routine: 'parserOpenTable'
+}
+ GET /api/universal/hr?tenantId=localhost&module=attendance 500 in 150ms (next.js: 1889µs, proxy.ts: 3ms, application-code: 146ms)
+ POST /api/auth/login 200 in 311ms (next.js: 2ms, proxy.ts: 4ms, application-code: 304ms)
+ POST /api/auth/login 200 in 287ms (next.js: 1763µs, proxy.ts: 3ms, application-code: 282ms)
+ GET /api/dashboard 200 in 14ms (next.js: 1753µs, proxy.ts: 2ms, application-code: 11ms)
+❌ Query error: {
+  error: error: relation "Tenant" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+      at async GET (src/app/api/universal/hr/route.ts:57:20)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 105,
+    severity: 'ERROR',
+    code: '42P01',
+    detail: undefined,
+    hint: undefined,
+    position: '15',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '1466',
+    routine: 'parserOpenTable'
+  },
+  text: 'SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1'
+}
+Universal HR GET error: error: relation "Tenant" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+    at async GET (src/app/api/universal/hr/route.ts:57:20)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 105,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '15',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1466',
+  routine: 'parserOpenTable'
+}
+ GET /api/universal/hr?tenantId=localhost&module=faculty 500 in 156ms (next.js: 2ms, proxy.ts: 2ms, application-code: 151ms)
+❌ Query error: {
+  error: error: relation "Tenant" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+      at async GET (src/app/api/universal/hr/route.ts:57:20)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 105,
+    severity: 'ERROR',
+    code: '42P01',
+    detail: undefined,
+    hint: undefined,
+    position: '15',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '1466',
+    routine: 'parserOpenTable'
+  },
+  text: 'SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1'
+}
+Universal HR GET error: error: relation "Tenant" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+    at async GET (src/app/api/universal/hr/route.ts:57:20)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 105,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '15',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1466',
+  routine: 'parserOpenTable'
+}
+ GET /api/universal/hr?tenantId=localhost&module=attendance 500 in 164ms (next.js: 2ms, proxy.ts: 3ms, application-code: 159ms)
+ POST /api/auth/login 200 in 277ms (next.js: 13ms, proxy.ts: 4ms, application-code: 260ms)
+ GET /api/dashboard 200 in 11ms (next.js: 1996µs, proxy.ts: 2ms, application-code: 6ms)
+ POST /api/auth/login 200 in 285ms (next.js: 2ms, proxy.ts: 2ms, application-code: 280ms)
+ POST /api/auth/login 200 in 272ms (next.js: 2ms, proxy.ts: 3ms, application-code: 267ms)
+ GET /api/dashboard 200 in 20ms (next.js: 3ms, proxy.ts: 3ms, application-code: 14ms)
+❌ Query error: {
+  error: error: relation "Tenant" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+      at async GET (src/app/api/universal/hr/route.ts:57:20)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 105,
+    severity: 'ERROR',
+    code: '42P01',
+    detail: undefined,
+    hint: undefined,
+    position: '15',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '1466',
+    routine: 'parserOpenTable'
+  },
+  text: 'SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1'
+}
+Universal HR GET error: error: relation "Tenant" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+    at async GET (src/app/api/universal/hr/route.ts:57:20)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 105,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '15',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1466',
+  routine: 'parserOpenTable'
+}
+ GET /api/universal/hr?tenantId=localhost&module=faculty 500 in 159ms (next.js: 1898µs, proxy.ts: 3ms, application-code: 154ms)
+ POST /api/auth/login 200 in 270ms (next.js: 2ms, proxy.ts: 3ms, application-code: 265ms)
+ GET /api/dashboard 200 in 10ms (next.js: 1684µs, proxy.ts: 3ms, application-code: 5ms)
+❌ Query error: {
+  error: error: relation "Tenant" does not exist
+      at async query (src/lib/db/postgres.ts:21:20)
+      at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+      at async GET (src/app/api/universal/hr/route.ts:57:20)
+    19 |   const start = Date.now();
+    20 |   try {
+  > 21 |     const result = await pool.query(text, params);
+       |                    ^
+    22 |     const duration = Date.now() - start;
+    23 |     if (duration > 1000) {
+    24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+    length: 105,
+    severity: 'ERROR',
+    code: '42P01',
+    detail: undefined,
+    hint: undefined,
+    position: '15',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '1466',
+    routine: 'parserOpenTable'
+  },
+  text: 'SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1'
+}
+Universal HR GET error: error: relation "Tenant" does not exist
+    at async query (src/lib/db/postgres.ts:21:20)
+    at async MultiTenantManager.initializeTenant (src/lib/multiTenant.ts:79:20)
+    at async GET (src/app/api/universal/hr/route.ts:57:20)
+  19 |   const start = Date.now();
+  20 |   try {
+> 21 |     const result = await pool.query(text, params);
+     |                    ^
+  22 |     const duration = Date.now() - start;
+  23 |     if (duration > 1000) {
+  24 |       console.warn('⚠️ Slow query:', { duration: `${duration}ms`, text: text.substring(0, 1... {
+  length: 105,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '15',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1466',
+  routine: 'parserOpenTable'
+}
+ GET /api/universal/hr?tenantId=localhost&module=faculty 500 in 146ms (next.js: 1998µs, proxy.ts: 3ms, application-code: 141ms)
+ GET /register 200 in 229ms (next.js: 53ms, proxy.ts: 35ms, application-code: 141ms)
+ GET /register 200 in 153ms (next.js: 10ms, proxy.ts: 22ms, application-code: 121ms)
+ GET /register 200 in 91ms (next.js: 4ms, proxy.ts: 4ms, application-code: 83ms)
+ GET /register 200 in 57ms (next.js: 23ms, proxy.ts: 4ms, application-code: 30ms)
+[Server HMR] Update failed, full reload needed: SyntaxError: Identifier 'tenantManager' has already been declared
+    at eval (<anonymous>)
+[Server HMR] Listener error: SyntaxError: Identifier 'tenantManager' has already been declared
+    at eval (<anonymous>)
+[Server HMR] Update failed, full reload needed: SyntaxError: Identifier 'tenantManager' has already been declared
+    at eval (<anonymous>)
+[Server HMR] Listener error: SyntaxError: Identifier 'tenantManager' has already been declared
+    at eval (<anonymous>)
+ GET /register 200 in 151ms (next.js: 42ms, proxy.ts: 13ms, application-code: 95ms)
+ GET /register 200 in 87ms (next.js: 4ms, proxy.ts: 3ms, application-code: 80ms)
+ GET /register 200 in 83ms (next.js: 4ms, proxy.ts: 3ms, application-code: 76ms)
+ GET /register 200 in 53ms (next.js: 3ms, proxy.ts: 2ms, application-code: 47ms)
+ GET /register 200 in 30ms (next.js: 2ms, proxy.ts: 2ms, application-code: 26ms)
+ POST /api/auth/login 200 in 326ms (next.js: 58ms, proxy.ts: 2ms, application-code: 266ms)
+ GET /api/dashboard 200 in 32ms (next.js: 18ms, proxy.ts: 3ms, application-code: 11ms)
+⨯ ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts
+
+
+ GET /api/universal/hr?tenantId=localhost&module=faculty 500 in 144ms (next.js: 68ms, proxy.ts: 4ms, application-code: 72ms)
+⨯ ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts
+
+
+ GET /api/universal/hr?tenantId=localhost&module=attendance 500 in 15ms (next.js: 4ms, proxy.ts: 3ms, application-code: 8ms)
+ POST /api/auth/login 500 in 21ms (next.js: 5ms, proxy.ts: 3ms, application-code: 12ms)
+ POST /api/auth/login 500 in 19ms (next.js: 5ms, proxy.ts: 3ms, application-code: 11ms)
+ GET /api/dashboard 500 in 17ms (next.js: 4ms, proxy.ts: 4ms, application-code: 9ms)
+🏢 Initialized tenant: University of KEKA (localhost)
+ GET /api/universal/hr?tenantId=localhost&module=faculty 200 in 60ms (next.js: 37ms, proxy.ts: 4ms, application-code: 20ms)
+[browser] ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts 
+[browser] ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts 
+[browser] ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts 
+[browser] ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts 
+[browser] ./src/lib/multiTenant.ts:265:14
+the name `tenantManager` is defined multiple times
+Ecmascript file had an error
+
+Import trace:
+  App Route:
+    ./src/lib/multiTenant.ts
+    ./src/app/api/universal/hr/route.ts 

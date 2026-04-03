@@ -1,32 +1,55 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
 import { employeeSchema } from '@/lib/utils/validation';
+import { verifyToken } from '@/lib/auth/jwt';
+import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+    const { tenantId, role } = payload;
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
 
-    let queryString = 'SELECT * FROM employees WHERE tenant_id = $1 AND is_active = true';
+    let queryString = `
+      SELECT e.*, d.name as department_name, ds.name as designation_name,
+             m.first_name || ' ' || m.last_name as manager_name
+      FROM employees e
+      LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN designations ds ON e.designation_id = ds.id
+      LEFT JOIN employees m ON e.manager_id = m.id
+      WHERE e.tenant_id = $1 AND e.is_active = true
+    `;
     const params: unknown[] = [tenantId];
 
     if (search) {
       params.push(`%${search}%`);
-      queryString += ` AND (name ILIKE $2 OR email ILIKE $2 OR employee_id ILIKE $2 OR department ILIKE $2)`;
+      queryString += ` AND (e.first_name ILIKE $2 OR e.last_name ILIKE $2 OR e.email ILIKE $2 OR e.university_id ILIKE $2)`;
     }
 
-    queryString += ' ORDER BY created_at DESC';
+    queryString += ' ORDER BY e.created_at DESC';
     const result = await query(queryString, params);
 
     // Map DB columns back to frontend-expected format
     const employees = result.rows.map(emp => ({
       ...emp,
+      _id: emp.id,
+      name: `${emp.first_name} ${emp.last_name}`.trim(),
+      employeeId: emp.university_id,
+      department: emp.department_name || 'N/A',
+      designation: emp.designation_name || 'N/A',
+      managerName: emp.manager_name || 'N/A',
       salary: {
-        basic: emp.salary_basic,
-        hra: emp.salary_hra,
-        allowances: emp.salary_allowances,
-        deductions: emp.salary_deductions
+        basic: emp.salary_basic || 0,
+        hra: emp.salary_hra || 0,
+        allowances: emp.salary_allowances || 0,
+        deductions: emp.salary_deductions || 0
       }
     }));
 
@@ -39,27 +62,39 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const parsed = employeeSchema.safeParse(body);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
-        { status: 400 }
-      );
+    const payload = await verifyToken(token);
+    if (!payload || !['ADMIN', 'HR'].includes(payload.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { employeeId, name, email, phone, role, department, designation, deviceUserId, tenantId, salary } = parsed.data;
+    const body = await request.json();
+    const { tenantId } = payload;
 
+    // Standardized fields from Phase 4
+    const { employeeId, name, email, role, departmentId, managerId, salary } = body;
+    
+    if (!employeeId || !name || !email || !role) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const [firstName, ...lastNameParts] = name.split(' ');
+    const lastName = lastNameParts.join(' ') || '';
+
+    // 1. Transaction to Create Employee and User
     const result = await query(
       `INSERT INTO employees (
-        employee_id, name, email, phone, role, department, designation, 
-        device_user_id, tenant_id, salary_basic, salary_hra, salary_allowances, salary_deductions
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        university_id, employee_id, first_name, last_name, email, role, 
+        department_id, manager_id, tenant_id, 
+        salary_basic, salary_hra, salary_allowances, salary_deductions, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true)
       RETURNING *`,
       [
-        employeeId, name, email, phone, role, department, designation, 
-        deviceUserId, tenantId, 
+        employeeId, employeeId, firstName, lastName, email, role, 
+        departmentId || null, managerId || null, tenantId, 
         salary?.basic || 0, salary?.hra || 0, salary?.allowances || 0, salary?.deductions || 0
       ]
     );
@@ -67,7 +102,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, employee: result.rows[0] }, { status: 201 });
   } catch (error: any) {
     console.error('Create employee error:', error);
-    if (error.code === '23505') { // Postgres unique_violation
+    if (error.code === '23505') {
       return NextResponse.json({ error: 'Employee ID or Email already exists' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 });
@@ -76,42 +111,48 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const body = await request.json();
-    const { _id, ...updateData } = body; // _id from frontend potentially
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!_id && !updateData.employeeId) {
-      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
+    const payload = await verifyToken(token);
+    if (!payload || !['ADMIN', 'HR'].includes(payload.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
-    const { employeeId, name, email, phone, role, department, designation, deviceUserId, salary, isActive } = updateData;
+    const body = await request.json();
+    const { tenantId } = payload;
+    const { university_id, ...updateData } = body;
+
+    const { first_name, last_name, email, phone, role, department_id, manager_id, salary, is_active } = updateData;
 
     const result = await query(
       `UPDATE employees SET
-        name = COALESCE($1, name),
-        email = COALESCE($2, email),
-        phone = COALESCE($3, phone),
-        role = COALESCE($4, role),
-        department = COALESCE($5, department),
-        designation = COALESCE($6, designation),
-        device_user_id = COALESCE($7, device_user_id),
+        first_name = COALESCE($1, first_name),
+        last_name = COALESCE($2, last_name),
+        email = COALESCE($3, email),
+        phone = COALESCE($4, phone),
+        role = COALESCE($5, role),
+        department_id = $6,
+        manager_id = $7,
         salary_basic = COALESCE($8, salary_basic),
         salary_hra = COALESCE($9, salary_hra),
         salary_allowances = COALESCE($10, salary_allowances),
         salary_deductions = COALESCE($11, salary_deductions),
-        is_active = COALESCE($12, is_active),
+        is_active = COALESCE($13, is_active),
         updated_at = NOW()
-      WHERE employee_id = $13 AND tenant_id = $14
+      WHERE university_id = $14 AND tenant_id = $12
       RETURNING *`,
       [
-        name, email, phone, role, department, designation, deviceUserId,
+        first_name, last_name, email, phone, role, 
+        department_id, manager_id,
         salary?.basic, salary?.hra, salary?.allowances, salary?.deductions,
-        isActive, employeeId, tenantId
+        tenantId, is_active, university_id
       ]
     );
 
     if (result.rowCount === 0) {
-      return NextResponse.json({ error: 'Employee not found or unauthorized' }, { status: 404 });
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, employee: result.rows[0] });
@@ -123,26 +164,30 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const payload = await verifyToken(token);
+    if (!payload || payload.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { tenantId } = payload;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
-    if (!id) {
-      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
-    }
+    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    const result = await query(
-      'UPDATE employees SET is_active = false, updated_at = NOW() WHERE employee_id = $1 AND tenant_id = $2 RETURNING *',
+    await query(
+      'UPDATE employees SET is_active = false, updated_at = NOW() WHERE university_id = $1 AND tenant_id = $2',
       [id, tenantId]
     );
 
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: 'Employee not found or unauthorized' }, { status: 404 });
-    }
-
     return NextResponse.json({ success: true, message: 'Employee deactivated' });
   } catch (error) {
-    console.error('Delete employee error:', error);
-    return NextResponse.json({ error: 'Failed to delete employee' }, { status: 500 });
+    console.error('Delete error:', error);
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }
+

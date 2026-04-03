@@ -1,10 +1,11 @@
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
 import { NextResponse } from 'next/server';
-import { verifyToken, getTokenFromCookies } from '@/lib/auth/jwt';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const cookieHeader = request.headers.get('cookie');
-    const token = getTokenFromCookies(cookieHeader);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
 
     if (!token) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
         email: payload.email,
         role: payload.role,
         tenantId: payload.tenantId,
+        employeeId: payload.employeeId,
       },
     });
   } catch (error) {

@@ -65,14 +65,40 @@ export async function POST(request: Request) {
         current.setDate(current.getDate() + 1);
       }
 
+      // Get leave records for the month to distinguish paid vs unpaid
+      const leaveResult = await query(
+        `SELECT lr.*, lt.is_paid 
+         FROM leave_requests lr
+         JOIN leave_types lt ON lr.leave_type_id = lt.id
+         WHERE lr.employee_id = $1 AND lr.tenant_id = $2 AND lr.status = 'approved'
+         AND ((lr.start_date <= $3 AND lr.end_date >= $3) OR (lr.start_date <= $4 AND lr.end_date >= $4))`,
+        [emp.employee_id, tenantId, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]
+      );
+      const leaveRecords = leaveResult.rows;
+
       const presentDays = attendanceRecords.filter(
         (a) => a.status === 'present' || a.status === 'late'
       ).length;
       const halfDays = attendanceRecords.filter((a) => a.status === 'half-day').length;
-      const leaveDays = attendanceRecords.filter((a) => a.status === 'on-leave').length;
-      const absentDays = workingDays - presentDays - halfDays - leaveDays;
+      
+      // Calculate total leave days in this month
+      let paidLeaveDays = 0;
+      let unpaidLeaveDays = 0;
+      
+      leaveRecords.forEach(lr => {
+        const leaveStart = new Date(lr.start_date);
+        const leaveEnd = new Date(lr.end_date);
+        const overlapStart = new Date(Math.max(leaveStart.getTime(), startDate.getTime()));
+        const overlapEnd = new Date(Math.min(leaveEnd.getTime(), endDate.getTime()));
+        const days = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+        
+        if (lr.is_paid) paidLeaveDays += days;
+        else unpaidLeaveDays += days;
+      });
 
-      // Calculate salary using PostgreSQL columns
+      const absentDays = Math.max(0, workingDays - presentDays - halfDays - (paidLeaveDays + unpaidLeaveDays));
+
+      // Calculate salary
       const basic = Number(emp.salary_basic) || 0;
       const hra = Number(emp.salary_hra) || 0;
       const allowances = Number(emp.salary_allowances) || 0;
@@ -80,7 +106,10 @@ export async function POST(request: Request) {
       
       const totalGross = basic + hra + allowances;
       const perDaySalary = totalGross / (workingDays || 30);
-      const absentDeduction = (absentDays * perDaySalary) + (halfDays * perDaySalary * 0.5);
+      
+      // Deductions include Unpaid Leaves (LOP) + Absents
+      const totalDeductionDays = absentDays + unpaidLeaveDays + (halfDays * 0.5);
+      const absentDeduction = totalDeductionDays * perDaySalary;
       const netSalary = Math.max(0, totalGross - deductions - absentDeduction);
 
       // Generate simple payslip content
@@ -90,7 +119,8 @@ export async function POST(request: Request) {
         department: emp.department,
         designation: emp.designation
       }, {
-        month, year, workingDays, presentDays, halfDays, absentDays, leaveDays,
+        month, year, workingDays, presentDays, halfDays, absentDays, 
+        leaveDays: paidLeaveDays + unpaidLeaveDays,
         basic, hra, allowances,
         deductions: deductions + absentDeduction, netSalary,
       });
@@ -118,7 +148,7 @@ export async function POST(request: Request) {
           emp.employee_id, tenantId, month, year,
           basic, hra, allowances,
           deductions + absentDeduction, netSalary,
-          workingDays, presentDays + halfDays, absentDays,
+          workingDays, presentDays + halfDays, absentDays + unpaidLeaveDays,
           filePath, 'generated',
         ]
       );

@@ -43,9 +43,13 @@ export async function processAttendance(tenantId: string) {
     const [deviceUserId, dateStr] = key.split('_');
     const date = dateStr;
 
-    // Find employee by device_user_id from PostgreSQL
+    // Find employee by device_user_id from PostgreSQL via tenant_users mapping
     const empResult = await query(
-      'SELECT employee_id FROM employees WHERE tenant_id = $1 AND device_user_id = $2 AND is_active = true LIMIT 1',
+      `SELECT e.id as employee_id 
+       FROM employees e
+       JOIN tenant_users tu ON e.user_id = tu.user_id
+       WHERE e.tenant_id = $1 AND tu.device_user_id = $2 AND tu.is_active = true
+       LIMIT 1`,
       [tenantId, deviceUserId]
     );
     const employee = empResult.rows[0];
@@ -59,16 +63,20 @@ export async function processAttendance(tenantId: string) {
 
     // Sort logs by timestamp
     const sortedLogs = logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    const firstPunch = new Date(sortedLogs[0].timestamp);
-    const lastPunch = sortedLogs.length > 1 ? new Date(sortedLogs[sortedLogs.length - 1].timestamp) : null;
+    // Mapping status from logs: 0 = IN, 1 = OUT (common in ZK devices)
+    const inPunch = sortedLogs.find(l => Number(l.status) === 0) || sortedLogs[0];
+    const outPunch = sortedLogs.length > 1 ? (sortedLogs.findLast?.(l => Number(l.status) === 1) || sortedLogs[sortedLogs.length - 1]) : null;
+
+    const firstPunch = new Date(inPunch.timestamp);
+    const lastPunch = outPunch ? new Date(outPunch.timestamp) : null;
 
     // Determine status
     const workStartHour = 9; // 9 AM
-    let status: 'present' | 'late' | 'half-day' = 'present';
+    let status: 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT' = 'PRESENT';
 
     if (firstPunch.getHours() > workStartHour || 
         (firstPunch.getHours() === workStartHour && firstPunch.getMinutes() > 15)) {
-      status = 'late';
+      status = 'LATE';
     }
 
     // Calculate working hours
@@ -76,11 +84,11 @@ export async function processAttendance(tenantId: string) {
     if (lastPunch) {
       workingHours = (lastPunch.getTime() - firstPunch.getTime()) / (1000 * 60 * 60);
       if (workingHours < 4) {
-        status = 'half-day';
+        status = 'HALF_DAY';
       }
     } else {
       // Only one punch - mark as half-day
-      status = 'half-day';
+      status = 'HALF_DAY';
     }
 
     const overtime = Math.max(0, workingHours - 8);

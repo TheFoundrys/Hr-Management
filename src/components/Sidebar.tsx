@@ -1,23 +1,28 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import {
-  LayoutDashboard, Users, Clock, CalendarOff, Wallet, FileText,
-  BarChart3, LogOut, GraduationCap, ChevronLeft, Menu, Fingerprint,
+  LayoutDashboard, Users, Clock, CalendarOff, Wallet,
+  LogOut, GraduationCap, ChevronLeft, Menu, Fingerprint,
+  FileText, UserCircle, Shield
 } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'teaching', 'non-teaching'] },
-  { href: '/employees', label: 'Employees', icon: Users, roles: ['admin'] },
-  { href: '/attendance', label: 'Attendance', icon: Clock, roles: ['admin', 'teaching', 'non-teaching'] },
-  { href: '/leave', label: 'Leave', icon: CalendarOff, roles: ['admin', 'teaching', 'non-teaching'] },
-  { href: '/payroll', label: 'Payroll', icon: Wallet, roles: ['admin'] },
-  { href: '/documents', label: 'Documents', icon: FileText, roles: ['admin', 'teaching', 'non-teaching'] },
-  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin'] },
-  { href: '/biometric', label: 'Biometric', icon: Fingerprint, roles: ['admin'] },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
+  { href: '/team', label: 'My Team', icon: Users, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
+  { href: '/employees', label: 'Employees', icon: Users, roles: ['ADMIN', 'HR'] },
+  { href: '/attendance', label: 'Attendance', icon: Clock, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
+  { href: '/leave', label: 'Leave', icon: CalendarOff, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
+  { href: '/payslips', label: 'Payslips', icon: FileText, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
+  { href: '/salary-structure', label: 'Salary Structure', icon: Wallet, roles: ['ADMIN', 'HR'] },
+  { href: '/biometric', label: 'Biometric', icon: Fingerprint, roles: ['ADMIN'] },
+  { href: '/admin/attendance/network', label: 'Network Security', icon: Shield, roles: ['ADMIN'] },
+  { href: '/profile', label: 'Profile', icon: UserCircle, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
 ];
+
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -25,7 +30,9 @@ export function Sidebar() {
   const { user, logout } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
 
-  const filteredNav = navItems.filter((item) => item.roles.includes(user?.role || 'teaching'));
+  const baseRole = (user?.role || 'STAFF').toUpperCase();
+
+  const filteredNav = navItems.filter((item) => item.roles.includes(baseRole));
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -67,7 +74,7 @@ export function Sidebar() {
           {filteredNav.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
@@ -78,7 +85,7 @@ export function Sidebar() {
               >
                 <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary-400' : 'text-white/40 group-hover:text-white/70'}`} />
                 {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-              </a>
+              </Link>
             );
           })}
         </nav>

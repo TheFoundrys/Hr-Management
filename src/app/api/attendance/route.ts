@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
+import { getTenantId } from '@/lib/utils/tenant';
 
 export async function GET(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
     const employeeId = searchParams.get('employeeId');
@@ -11,38 +12,46 @@ export async function GET(request: Request) {
     const month = searchParams.get('month');
     const year = searchParams.get('year');
 
-    let queryString = 'SELECT * FROM attendance WHERE tenant_id = $1';
+    // Join with employees to filter by tenantId
+    let queryString = `
+      SELECT a.*, e.university_id, e.first_name, e.last_name 
+      FROM attendance a 
+      JOIN employees e ON a.employee_id = e.id 
+      WHERE e.tenant_id = $1
+    `;
     const params: unknown[] = [tenantId];
     let paramIndex = 2;
 
     if (employeeId) {
-      queryString += ` AND employee_id = $${paramIndex++}`;
+      queryString += ` AND e.employee_id = $${paramIndex++}`;
       params.push(employeeId);
     }
     if (status) {
-      queryString += ` AND status = $${paramIndex++}`;
-      params.push(status);
+      queryString += ` AND a.status = $${paramIndex++}`;
+      params.push(status.toUpperCase());
     }
 
     if (date) {
-      queryString += ` AND date = $${paramIndex++}::DATE`;
+      queryString += ` AND a.date = $${paramIndex++}::DATE`;
       params.push(date);
     } else if (month && year) {
-      queryString += ` AND EXTRACT(MONTH FROM date) = $${paramIndex++} AND EXTRACT(YEAR FROM date) = $${paramIndex++}`;
+      queryString += ` AND EXTRACT(MONTH FROM a.date) = $${paramIndex++} AND EXTRACT(YEAR FROM a.date) = $${paramIndex++}`;
       params.push(parseInt(month), parseInt(year));
     }
 
-    queryString += ' ORDER BY date DESC, employee_id ASC';
+    queryString += ' ORDER BY a.date DESC, a.employee_id ASC';
     const result = await query(queryString, params);
 
     // Map result columns to frontend-expected camelCase
     const attendance = result.rows.map(row => ({
       ...row,
-      employeeId: row.employee_id,
+      universityId: row.university_id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      status: row.status.toLowerCase(),
       checkIn: row.check_in,
       checkOut: row.check_out,
-      workingHours: row.working_hours,
-      overtime: row.overtime
+      workingHours: row.working_hours
     }));
 
     return NextResponse.json({ success: true, attendance });
@@ -54,7 +63,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const body = await request.json();
     const { employeeId, date, checkIn, checkOut, status, notes } = body;
 
@@ -64,9 +73,9 @@ export async function POST(request: Request) {
 
     const result = await query(
       `INSERT INTO attendance (
-        employee_id, tenant_id, date, check_in, check_out, status, notes, working_hours, source
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (tenant_id, employee_id, date) DO UPDATE SET
+        employee_id, date, check_in, check_out, status, notes, working_hours, source
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (employee_id, date) DO UPDATE SET
         check_in = COALESCE(EXCLUDED.check_in, attendance.check_in),
         check_out = COALESCE(EXCLUDED.check_out, attendance.check_out),
         status = COALESCE(EXCLUDED.status, attendance.status),
@@ -76,10 +85,10 @@ export async function POST(request: Request) {
         updated_at = NOW()
       RETURNING *`,
       [
-        employeeId, tenantId, date, 
+        employeeId, date, 
         checkIn ? new Date(checkIn) : null, 
         checkOut ? new Date(checkOut) : null,
-        status || 'present', notes || '', workingHours, 'manual'
+        (status || 'PRESENT').toUpperCase(), notes || '', workingHours, 'manual'
       ]
     );
 

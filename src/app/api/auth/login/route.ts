@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
     // Find user in PostgreSQL
     const result = await query(
-      'SELECT id, name, email, password_hash, role, tenant_id FROM users WHERE email = $1 AND is_active = true',
+      'SELECT id, name, email, password_hash, role, tenant_id, employee_id FROM users WHERE email = $1 AND is_active = true',
       [normalizedEmail]
     );
 
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       role: user.role,
       tenantId: user.tenant_id,
       name: user.name,
+      employeeId: user.employee_id,
     });
 
     const response = NextResponse.json({
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
         email: user.email,
         role: user.role,
         tenantId: user.tenant_id,
+        employeeId: user.employee_id,
       },
     });
 

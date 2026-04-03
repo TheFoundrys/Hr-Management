@@ -65,8 +65,9 @@ export class MultiTenantManager {
 
   // Initialize tenant from request
   async initializeTenant(request: Request): Promise<Tenant> {
-    const hostname = request.headers.get('host') || '';
-    const subdomain = hostname.split('.')[0];
+    const host = request.headers.get('host') || '';
+    const hostname = host.split(':')[0];
+    const subdomain = hostname.split('.')[0] || 'default';
 
     // Check cache first
     if (this.tenantCache.has(subdomain)) {
@@ -76,11 +77,21 @@ export class MultiTenantManager {
 
     // Get tenant from database
     const result = await query(
-      `SELECT * FROM "Tenant" WHERE "subdomain" = $1 OR "domain" = $1 LIMIT 1`,
+      `SELECT * FROM tenants WHERE subdomain = $1 OR domain = $1 LIMIT 1`,
       [subdomain]
     );
 
-    if (result.rowCount === 0) {
+    if (result.rows.length === 0) {
+      // Try to find a default tenant if subdomain is localhost or common
+      if (subdomain === 'localhost' || subdomain === 'default') {
+        const defaultRes = await query('SELECT * FROM tenants LIMIT 1');
+        if (defaultRes && defaultRes.rows.length > 0) {
+          const tenant = defaultRes.rows[0];
+          this.tenantCache.set(subdomain, tenant);
+          this.currentTenant = tenant;
+          return tenant;
+        }
+      }
       throw new Error(`Tenant ${subdomain} not found`);
     }
 
@@ -99,13 +110,11 @@ export class MultiTenantManager {
 
   // Get tenant devices
   async getTenantDevices(tenantId: string): Promise<TenantDevice[]> {
-    // Check if tenantId is UUID or subdomain
     const isUuid = tenantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-
-    const whereClause = isUuid ? `WHERE "tenantId" = $1` : `WHERE "tenantId" = (SELECT id FROM "Tenant" WHERE subdomain = $1 LIMIT 1)`;
+    const whereClause = isUuid ? `WHERE tenant_id = $1` : `WHERE tenant_id = (SELECT id FROM tenants WHERE subdomain = $1 LIMIT 1)`;
 
     const result = await query(
-      `SELECT * FROM "TenantDevice" ${whereClause} AND status = 'active'`,
+      `SELECT * FROM tenant_devices ${whereClause} AND status = 'active'`,
       [tenantId]
     );
 
@@ -119,8 +128,8 @@ export class MultiTenantManager {
     }
 
     const result = await query(
-      `SELECT * FROM "TenantDevice"
-       WHERE "tenantId" = $1 AND "deviceId" = $2 AND status = 'active' LIMIT 1`,
+      `SELECT * FROM tenant_devices
+       WHERE tenant_id = $1 AND device_id = $2 AND status = 'active' LIMIT 1`,
       [this.currentTenant.id, deviceId]
     );
 
@@ -129,15 +138,14 @@ export class MultiTenantManager {
 
   // Get user mapping for device
   async getUserMapping(tenantId: string, deviceId: string, deviceUserId: string): Promise<TenantUser | null> {
-    // Check if tenantId is UUID or subdomain
     const isUuid = tenantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
     const whereClause = isUuid ?
-      `WHERE "tenantId" = $1 AND "deviceId" = $2 AND "deviceUserId" = $3 AND "isActive" = true LIMIT 1` :
-      `WHERE "tenantId" = (SELECT id FROM "Tenant" WHERE subdomain = $1 LIMIT 1) AND "deviceId" = $2 AND "deviceUserId" = $3 AND "isActive" = true LIMIT 1`;
+      `WHERE tenant_id = $1 AND device_id = $2 AND device_user_id = $3 AND is_active = true LIMIT 1` :
+      `WHERE tenant_id = (SELECT id FROM tenants WHERE subdomain = $1 LIMIT 1) AND device_id = $2 AND device_user_id = $3 AND is_active = true LIMIT 1`;
 
     const result = await query(
-      `SELECT * FROM "TenantUser" ${whereClause}`,
+      `SELECT * FROM tenant_users ${whereClause}`,
       [tenantId, deviceId, deviceUserId]
     );
 
@@ -147,18 +155,16 @@ export class MultiTenantManager {
   // Create new tenant
   async createTenant(tenantData: Omit<Tenant, 'id' | 'createdAt' | 'updatedAt'>): Promise<Tenant> {
     const result = await query(
-      `INSERT INTO "Tenant"
-       (name, domain, subdomain, database, settings, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO tenants
+       (name, domain, subdomain, database_name, settings)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
       [
         tenantData.name,
         tenantData.domain,
         tenantData.subdomain,
         tenantData.database,
-        JSON.stringify(tenantData.settings),
-        new Date(),
-        new Date()
+        JSON.stringify(tenantData.settings)
       ]
     );
 
@@ -171,24 +177,23 @@ export class MultiTenantManager {
 
   // Add device to tenant
   async addDevice(tenantId: string, deviceData: Omit<TenantDevice, 'id' | 'createdAt' | 'updatedAt'>): Promise<TenantDevice> {
-    // Convert subdomain to UUID if needed
     let actualTenantId = tenantId;
     const isUuid = tenantId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
     if (!isUuid) {
       const tenantResult = await query(
-        `SELECT id FROM "Tenant" WHERE subdomain = $1 LIMIT 1`,
+        `SELECT id FROM tenants WHERE subdomain = $1 LIMIT 1`,
         [tenantId]
       );
-      if (tenantResult?.rowCount && tenantResult.rowCount > 0) {
+      if (tenantResult?.rows.length && tenantResult.rows.length > 0) {
         actualTenantId = tenantResult.rows[0].id;
       }
     }
 
     const result = await query(
-      `INSERT INTO "TenantDevice"
-       ("tenantId", "deviceId", "deviceType", "deviceIp", "deviceName", "location", status, settings, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO tenant_devices
+       (tenant_id, device_id, device_type, device_ip, device_name, location, status, settings)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         actualTenantId,
@@ -198,30 +203,28 @@ export class MultiTenantManager {
         deviceData.deviceName,
         deviceData.location,
         deviceData.status || 'active',
-        JSON.stringify(deviceData.settings),
-        new Date(),
-        new Date()
+        JSON.stringify(deviceData.settings)
       ]
     );
 
     const device = result.rows[0];
-    console.log(`📱 Added device to tenant: ${device.deviceName} (${device.deviceIp})`);
+    console.log(`📱 Added device to tenant: ${device.device_name} (${device.device_ip})`);
     return device;
   }
 
   // Map user to device
   async mapUserToDevice(tenantId: string, mappingData: Omit<TenantUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<TenantUser> {
     const result = await query(
-      `INSERT INTO "TenantUser"
-       ("tenantId", "userId", "deviceId", "deviceUserId", "role", "permissions", "isActive", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT ("tenantId", "deviceId", "deviceUserId")
+      `INSERT INTO tenant_users
+       (tenant_id, user_id, device_id, device_user_id, role, permissions, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (tenant_id, device_id, device_user_id)
        DO UPDATE SET
-         "userId" = EXCLUDED."userId",
-         "role" = EXCLUDED."role",
-         "permissions" = EXCLUDED."permissions",
-         "isActive" = EXCLUDED."isActive",
-         "updatedAt" = EXCLUDED."updatedAt"
+         user_id = EXCLUDED.user_id,
+         role = EXCLUDED.role,
+         permissions = EXCLUDED.permissions,
+         is_active = EXCLUDED.is_active,
+         updated_at = NOW()
        RETURNING *`,
       [
         tenantId,
@@ -230,21 +233,19 @@ export class MultiTenantManager {
         mappingData.deviceUserId,
         mappingData.role,
         JSON.stringify(mappingData.permissions),
-        mappingData.isActive,
-        new Date(),
-        new Date()
+        mappingData.isActive
       ]
     );
 
     const mapping = result.rows[0];
-    console.log(`🔗 Mapped user: ${mapping.userId} -> device ${mapping.deviceId} (${mapping.deviceUserId})`);
+    console.log(`🔗 Mapped user: ${mapping.user_id} -> device ${mapping.device_id} (${mapping.device_user_id})`);
     return mapping;
   }
 
   // Get all tenants (for admin)
   async getAllTenants(): Promise<Tenant[]> {
     const result = await query(
-      `SELECT * FROM "Tenant" ORDER BY "createdAt" DESC`
+      `SELECT * FROM tenants ORDER BY created_at DESC`
     );
 
     return result.rows;
@@ -258,4 +259,4 @@ export class MultiTenantManager {
 }
 
 // Global tenant manager instance
-export const tenantManager = new MultiTenantManager();
+export const globalTenantManager = new MultiTenantManager();

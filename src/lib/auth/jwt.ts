@@ -5,9 +5,9 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'default-s
 export interface TokenPayload extends JWTPayload {
   userId: string;
   email: string;
-  role: 'admin' | 'teaching' | 'non-teaching';
+  role: 'STAFF' | 'HOD' | 'HR' | 'ADMIN' | string;
   tenantId: string;
-  name: string;
+
 }
 
 export async function createToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): Promise<string> {

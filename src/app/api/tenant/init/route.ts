@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { tenantManager } from '@/lib/multiTenant';
+import { globalTenantManager } from '@/lib/multiTenant';
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const tenant = await tenantManager.createTenant({
+    const tenant = await globalTenantManager.createTenant({
       name,
       domain: domain || `${subdomain}.yourdomain.com`,
       subdomain,
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const tenants = await tenantManager.getAllTenants();
+    const tenants = await globalTenantManager.getAllTenants();
 
     return NextResponse.json({
       success: true,

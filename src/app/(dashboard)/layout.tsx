@@ -10,11 +10,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isLoading, isAuthenticated, router]);
+  // Authentication is handled by middleware.ts
+  // This client-side check is a fallback for store hydration
 
   if (isLoading) {
     return (

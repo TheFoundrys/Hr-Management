@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
+import { getTenantId } from '@/lib/utils/tenant';
 
 export async function GET(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'attendance';
     const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
@@ -25,16 +26,17 @@ export async function GET(request: Request) {
       const attendance = attendanceResult.rows;
 
       const report = employees.map((emp) => {
-        const empAttendance = attendance.filter((a) => a.employee_id === emp.employee_id);
+        const empAttendance = attendance.filter((a) => a.employee_id === emp.id);
+        const name = `${emp.first_name} ${emp.last_name}`;
         return {
-          employeeId: emp.employee_id,
-          name: emp.name,
-          department: emp.department,
-          totalPresent: empAttendance.filter((a) => a.status === 'present' || a.status === 'late').length,
-          totalAbsent: empAttendance.filter((a) => a.status === 'absent').length,
-          totalLate: empAttendance.filter((a) => a.status === 'late').length,
-          totalHalfDay: empAttendance.filter((a) => a.status === 'half-day').length,
-          totalLeave: empAttendance.filter((a) => a.status === 'on-leave').length,
+          employeeId: emp.university_id,
+          name,
+          department: emp.department_id, // Map ID for now or join with departments
+          totalPresent: empAttendance.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').length,
+          totalAbsent: empAttendance.filter((a) => a.status === 'ABSENT').length,
+          totalLate: empAttendance.filter((a) => a.status === 'LATE').length,
+          totalHalfDay: empAttendance.filter((a) => a.status === 'HALF_DAY').length,
+          totalLeave: empAttendance.filter((a) => a.status === 'ON-LEAVE').length,
           totalHours: empAttendance.reduce((sum, a) => sum + Number(a.working_hours || 0), 0).toFixed(2),
         };
       });

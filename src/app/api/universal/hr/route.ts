@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { tenantManager } from '@/lib/multiTenant';
+import { globalTenantManager } from '@/lib/multiTenant';
+import crypto from 'crypto';
 
 // Universal HR modules that work across all tenants
 export async function POST(request: Request) {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     // Get tenant info
-    const tenant = await tenantManager.initializeTenant(request);
+    const tenant = await globalTenantManager.initializeTenant(request);
 
     switch (module) {
       case 'faculty':
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
       }, { status: 400 });
     }
 
-    const tenant = await tenantManager.initializeTenant(request);
+    const tenant = await globalTenantManager.initializeTenant(request);
 
     switch (module) {
       case 'faculty':
@@ -75,7 +76,8 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Universal HR GET error:', error);
     return NextResponse.json({
-      error: 'Failed to get HR data'
+      error: 'Failed to get HR data',
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }
@@ -84,43 +86,75 @@ export async function GET(request: Request) {
 async function handleFaculty(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'add':
+      // 1. Ensure User exists
+      let userQuery = await query('SELECT id FROM users WHERE email = $1', [data.email]);
+      let userId;
+
+      if (userQuery.rows.length === 0) {
+        const uRes = await query(
+          `INSERT INTO users (tenant_id, email, password_hash, name, role)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id`,
+          [tenantId, data.email, '$2b$12$5eRfxaFdxxCbGadb37vdRuoOA6m3p3oZuja6gqelmqXZL4SC1u0me', data.firstName + ' ' + data.lastName, 'STAFF']
+        );
+        userId = uRes.rows[0].id;
+      } else {
+        userId = userQuery.rows[0].id;
+      }
+
+      // 2. Handle Department (Normalization)
+      let deptId = null;
+      if (data.department) {
+        const dRes = await query('SELECT id FROM departments WHERE tenant_id = $1 AND name = $2', [tenantId, data.department]);
+        if (dRes.rows.length > 0) deptId = dRes.rows[0].id;
+        else {
+          const newDept = await query('INSERT INTO departments (tenant_id, name) VALUES ($1, $2) RETURNING id', [tenantId, data.department]);
+          deptId = newDept.rows[0].id;
+        }
+      }
+
+      // 3. Handle Designation (Normalization)
+      let desigId = null;
+      if (data.designation) {
+        const dsRes = await query('SELECT id FROM designations WHERE tenant_id = $1 AND name = $2', [tenantId, data.designation]);
+        if (dsRes.rows.length > 0) desigId = dsRes.rows[0].id;
+        else {
+          const newDesig = await query('INSERT INTO designations (tenant_id, name) VALUES ($1, $2) RETURNING id', [tenantId, data.designation]);
+          desigId = newDesig.rows[0].id;
+        }
+      }
+
       const result = await query(
-        `INSERT INTO "Employee"
-         (id, "universityId", "userId", "firstName", "lastName", "email", "phone", designation, department, "joinDate", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO employees
+         (tenant_id, user_id, university_id, first_name, last_name, email, department_id, designation_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [
-          `emp-${Date.now()}`,
-          data.universityId,
-          data.userId,
-          data.firstName,
-          data.lastName,
-          data.email,
-          data.phone,
-          data.designation,
-          data.department,
-          new Date(),
-          new Date(),
-          new Date()
-        ]
+        [tenantId, userId, data.universityId, data.firstName, data.lastName, data.email, deptId, desigId]
       );
       return NextResponse.json({ success: true, faculty: result.rows[0] });
 
     case 'update':
+      // Update normalized relations if provided
+      let updDeptId = undefined;
+      if (data.department) {
+         const dRes = await query('INSERT INTO departments (tenant_id, name) VALUES ($1, $2) ON CONFLICT (tenant_id, name) DO UPDATE SET name = EXCLUDED.name RETURNING id', [tenantId, data.department]);
+         updDeptId = dRes.rows[0].id;
+      }
+
       await query(
-        `UPDATE "Employee"
-         SET "firstName" = $2, "lastName" = $3, "email" = $4, "phone" = $5,
-             designation = $6, department = $7, "updatedAt" = $8
-         WHERE "universityId" = $1`,
-        [data.universityId, data.firstName, data.lastName, data.email, data.phone,
-         data.designation, data.department, new Date()]
+        `UPDATE employees
+         SET first_name = $2, last_name = $3,
+             department_id = COALESCE($4, department_id), 
+             updated_at = NOW()
+         WHERE university_id = $1 AND tenant_id = $5`,
+        [data.universityId, data.firstName, data.lastName, updDeptId, tenantId]
       );
       return NextResponse.json({ success: true, message: 'Faculty updated' });
 
     case 'delete':
       await query(
-        `DELETE FROM "Employee" WHERE "universityId" = $1`,
-        [data.universityId]
+        `DELETE FROM employees WHERE university_id = $1 AND tenant_id = $2`,
+        [data.universityId, tenantId]
       );
       return NextResponse.json({ success: true, message: 'Faculty deleted' });
 
@@ -131,11 +165,13 @@ async function handleFaculty(tenantId: string, action: string, data: any) {
 
 async function getFaculty(tenantId: string) {
   const result = await query(
-    `SELECT e.*, u."universityId", u.email as userEmail, u.role
-     FROM "Employee" e
-     JOIN "User" u ON e."userId" = u.id
-     WHERE u."tenantId" = $1
-     ORDER BY e."createdAt" DESC`,
+    `SELECT e.*, d.name as department, ds.name as designation, u.role
+     FROM employees e
+     LEFT JOIN departments d ON e.department_id = d.id
+     LEFT JOIN designations ds ON e.designation_id = ds.id
+     LEFT JOIN users u ON e.user_id = u.id
+     WHERE e.tenant_id = $1
+     ORDER BY e.created_at DESC`,
     [tenantId]
   );
 
@@ -150,13 +186,11 @@ async function handleInterns(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'add':
       const result = await query(
-        `INSERT INTO "Intern"
-         (id, "tenantId", "firstName", "lastName", "email", "phone",
-          "university", "department", "startDate", "endDate", "supervisor", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO interns
+         (tenant_id, first_name, last_name, email, phone, university, department, start_date, end_date, supervisor)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
-          `intern-${Date.now()}`,
           tenantId,
           data.firstName,
           data.lastName,
@@ -166,22 +200,20 @@ async function handleInterns(tenantId: string, action: string, data: any) {
           data.department,
           data.startDate,
           data.endDate,
-          data.supervisor,
-          new Date(),
-          new Date()
+          data.supervisor
         ]
       );
       return NextResponse.json({ success: true, intern: result.rows[0] });
 
     case 'update':
       await query(
-        `UPDATE "Intern"
-         SET "firstName" = $2, "lastName" = $3, "email" = $4, "phone" = $5,
-             "university" = $6, "department" = $7, "startDate" = $8, "endDate" = $9,
-             "supervisor" = $10, "updatedAt" = $11
-         WHERE id = $1`,
+        `UPDATE interns
+         SET first_name = $2, last_name = $3, email = $4, phone = $5,
+             university = $6, department = $7, start_date = $8, end_date = $9,
+             supervisor = $10, updated_at = NOW()
+         WHERE id = $1 AND tenant_id = $11`,
         [data.id, data.firstName, data.lastName, data.email, data.phone,
-         data.university, data.department, data.startDate, data.endDate, data.supervisor, new Date()]
+         data.university, data.department, data.startDate, data.endDate, data.supervisor, tenantId]
       );
       return NextResponse.json({ success: true, message: 'Intern updated' });
 
@@ -192,9 +224,9 @@ async function handleInterns(tenantId: string, action: string, data: any) {
 
 async function getInterns(tenantId: string) {
   const result = await query(
-    `SELECT * FROM "Intern"
-     WHERE "tenantId" = $1 AND ("endDate" IS NULL OR "endDate" > CURRENT_DATE)
-     ORDER BY "startDate" DESC`,
+    `SELECT * FROM interns
+     WHERE tenant_id = $1 AND (end_date IS NULL OR end_date > CURRENT_DATE)
+     ORDER BY start_date DESC`,
     [tenantId]
   );
 
@@ -208,30 +240,34 @@ async function getInterns(tenantId: string) {
 async function handleAttendance(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'manual-add':
+      // Lookup employee UUID from universityId
+      const empRes = await query('SELECT id FROM employees WHERE university_id = $1 AND tenant_id = $2', [data.universityId, tenantId]);
+      if (empRes.rows.length === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+      const employeeId = empRes.rows[0].id;
+
       const result = await query(
-        `INSERT INTO "Attendance"
-         (id, "universityId", "deviceId", "checkIn", "checkOut", status, "date")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO attendance
+         (employee_id, date, check_in, check_out, status, working_hours)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
         [
-          `manual-${Date.now()}`,
-          data.universityId,
-          data.deviceId || 'Manual',
+          employeeId,
+          data.date,
           data.checkIn,
           data.checkOut,
-          data.status,
-          data.date
+          data.status.toUpperCase(),
+          data.workingHours || 0
         ]
       );
       return NextResponse.json({ success: true, attendance: result.rows[0] });
 
     case 'bulk-update':
-      // Update multiple attendance records
       for (const record of data.records) {
         await query(
-          `UPDATE "Attendance"
-           SET "checkOut" = $2, status = $3
+          `UPDATE attendance
+           SET check_out = $2, status = $3, updated_at = NOW()
            WHERE id = $1`,
-          [record.id, record.checkOut, record.status]
+          [record.id, record.checkOut, record.status.toUpperCase()]
         );
       }
       return NextResponse.json({ success: true, message: 'Bulk attendance updated' });
@@ -245,7 +281,7 @@ async function getAttendance(tenantId: string, searchParams: URLSearchParams) {
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
   const status = searchParams.get('status');
 
-  let whereClause = `WHERE a."universityId" IN (SELECT "universityId" FROM "User" WHERE "tenantId" = $1)`;
+  let whereClause = `WHERE e.tenant_id = $1`;
   let queryParams = [tenantId];
 
   if (date) {
@@ -255,22 +291,32 @@ async function getAttendance(tenantId: string, searchParams: URLSearchParams) {
 
   if (status) {
     whereClause += ` AND a.status = $${queryParams.length + 1}`;
-    queryParams.push(status);
+    queryParams.push(status.toUpperCase());
   }
 
   const result = await query(
-    `SELECT a.*, e."firstName", e."lastName", u.email
-     FROM "Attendance" a
-     JOIN "Employee" e ON a."universityId" = e."universityId"
-     JOIN "User" u ON e."userId" = u.id
+    `SELECT a.*, e.university_id, e.first_name, e.last_name, e.email
+     FROM attendance a
+     JOIN employees e ON a.employee_id = e.id
      ${whereClause}
-     ORDER BY a.date DESC, a."checkIn" DESC`,
+     ORDER BY a.date DESC, a.check_in DESC`,
     queryParams
   );
 
+  // Map to frontend expectations
+  const attendance = result.rows.map(r => ({
+    ...r,
+    universityId: r.university_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    checkIn: r.check_in,
+    checkOut: r.check_out,
+    workingHours: r.working_hours
+  }));
+
   return NextResponse.json({
     success: true,
-    attendance: result.rows,
+    attendance,
     filters: { date, status }
   });
 }
@@ -279,36 +325,34 @@ async function getAttendance(tenantId: string, searchParams: URLSearchParams) {
 async function handleLeave(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'request':
+      // Lookup employee UUID from universityId
+      const empRes = await query('SELECT id FROM employees WHERE university_id = $1 AND tenant_id = $2', [data.universityId, tenantId]);
+      if (empRes.rows.length === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+      const employeeId = empRes.rows[0].id;
+
       const result = await query(
-        `INSERT INTO "Leave"
-         (id, "tenantId", "universityId", "leaveType", "startDate", "endDate",
-          "reason", "status", "approver", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO leaves
+         (employee_id, leave_type, start_date, end_date, reason, status)
+         VALUES ($1, $2, $3, $4, $5, 'PENDING')
          RETURNING *`,
         [
-          `leave-${Date.now()}`,
-          tenantId,
-          data.universityId,
-          data.leaveType,
+          employeeId,
+          (data.type || data.leaveType || 'CASUAL').toUpperCase(),
           data.startDate,
           data.endDate,
-          data.reason,
-          'pending',
-          null,
-          new Date(),
-          new Date()
+          data.reason
         ]
       );
       return NextResponse.json({ success: true, leave: result.rows[0] });
 
     case 'approve':
     case 'reject':
-      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      const newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED';
       await query(
-        `UPDATE "Leave"
-         SET "status" = $2, "approver" = $3, "updatedAt" = $4
+        `UPDATE leaves
+         SET status = $2, updated_at = NOW()
          WHERE id = $1`,
-        [data.leaveId, newStatus, data.approver, new Date()]
+        [data.leaveId, newStatus]
       );
       return NextResponse.json({
         success: true,
@@ -322,12 +366,11 @@ async function handleLeave(tenantId: string, action: string, data: any) {
 
 async function getLeave(tenantId: string) {
   const result = await query(
-    `SELECT l.*, e."firstName", e."lastName", u.email
-     FROM "Leave" l
-     JOIN "Employee" e ON l."universityId" = e."universityId"
-     JOIN "User" u ON e."userId" = u.id
-     WHERE l."tenantId" = $1
-     ORDER BY l."createdAt" DESC`,
+    `SELECT l.*, e.first_name as "firstName", e.last_name as "lastName", e.email, e.university_id as "universityId"
+     FROM leaves l
+     JOIN employees e ON l.employee_id = e.id
+     WHERE e.tenant_id = $1
+     ORDER BY l.created_at DESC`,
     [tenantId]
   );
 
@@ -341,30 +384,29 @@ async function getLeave(tenantId: string) {
 async function handleDocuments(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'upload':
+      const empRes = await query('SELECT id FROM employees WHERE university_id = $1 AND tenant_id = $2', [data.universityId, tenantId]);
+      if (empRes.rows.length === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+      const employeeId = empRes.rows[0].id;
+
       const result = await query(
-        `INSERT INTO "Document"
-         (id, "tenantId", "universityId", "documentType", "fileName",
-          "filePath", "fileSize", "uploadedBy", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO documents
+         (employee_id, doc_type, file_name, file_path, file_size)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
         [
-          `doc-${Date.now()}`,
-          tenantId,
-          data.universityId,
-          data.documentType,
-          data.fileName,
-          data.filePath,
-          data.fileSize,
-          data.uploadedBy,
-          new Date(),
-          new Date()
+          employeeId,
+          data.documentType || data.type,
+          data.fileName || data.name,
+          data.filePath || data.path,
+          Number(data.fileSize || data.size)
         ]
       );
       return NextResponse.json({ success: true, document: result.rows[0] });
 
     case 'delete':
       await query(
-        `DELETE FROM "Document" WHERE id = $1 AND "tenantId" = $2`,
+        `DELETE FROM documents 
+         WHERE id = $1 AND employee_id IN (SELECT id FROM employees WHERE tenant_id = $2)`,
         [data.documentId, tenantId]
       );
       return NextResponse.json({ success: true, message: 'Document deleted' });
@@ -376,12 +418,11 @@ async function handleDocuments(tenantId: string, action: string, data: any) {
 
 async function getDocuments(tenantId: string) {
   const result = await query(
-    `SELECT d.*, e."firstName", e."lastName", u.email
-     FROM "Document" d
-     JOIN "Employee" e ON d."universityId" = e."universityId"
-     JOIN "User" u ON e."userId" = u.id
-     WHERE d."tenantId" = $1
-     ORDER BY d."createdAt" DESC`,
+    `SELECT d.*, e.first_name as "firstName", e.last_name as "lastName", e.email, e.university_id as "universityId"
+     FROM documents d
+     JOIN employees e ON d.employee_id = e.id
+     WHERE e.tenant_id = $1
+     ORDER BY d.created_at DESC`,
     [tenantId]
   );
 
@@ -417,10 +458,10 @@ async function getDashboard(tenantId: string) {
 
 async function getDashboardStats(tenantId: string) {
   const [faculty, attendance, leave, documents] = await Promise.all([
-    query(`SELECT COUNT(*) as count FROM "Employee" e JOIN "User" u ON e."userId" = u.id WHERE u."tenantId" = $1`, [tenantId]),
-    query(`SELECT COUNT(*) as count FROM "Attendance" a JOIN "User" u ON a."universityId" = u."universityId" WHERE u."tenantId" = $1 AND DATE(a.date) = CURRENT_DATE`, [tenantId]),
-    query(`SELECT COUNT(*) as count FROM "Leave" l WHERE l."tenantId" = $1 AND "status" = 'pending'`, [tenantId]),
-    query(`SELECT COUNT(*) as count FROM "Document" d WHERE d."tenantId" = $1`, [tenantId])
+    query(`SELECT COUNT(*) as count FROM employees WHERE tenant_id = $1`, [tenantId]),
+    query(`SELECT COUNT(*) as count FROM attendance a JOIN employees e ON a.employee_id = e.id WHERE e.tenant_id = $1 AND DATE(a.date) = CURRENT_DATE`, [tenantId]),
+    query(`SELECT COUNT(*) as count FROM leaves l JOIN employees e ON l.employee_id = e.id WHERE e.tenant_id = $1 AND l.status = 'PENDING'`, [tenantId]),
+    query(`SELECT COUNT(*) as count FROM documents d JOIN employees e ON d.employee_id = e.id WHERE e.tenant_id = $1`, [tenantId])
   ]);
 
   return {
@@ -433,11 +474,11 @@ async function getDashboardStats(tenantId: string) {
 
 async function getRecentActivity(tenantId: string) {
   const result = await query(
-    `SELECT 'Faculty Added' as activity, e."firstName" || ' ' || e."lastName" as details, e."createdAt" as timestamp
-     FROM "Employee" e JOIN "User" u ON e."userId" = u.id WHERE u."tenantId" = $1
+    `SELECT 'Faculty Added' as activity, first_name || ' ' || last_name as details, created_at as timestamp
+     FROM employees WHERE tenant_id = $1
      UNION ALL
-     SELECT 'Leave Request' as activity, l."leaveType" as details, l."createdAt" as timestamp
-     FROM "Leave" l WHERE l."tenantId" = $1
+     SELECT 'Leave Request' as activity, leave_type as details, created_at as timestamp
+     FROM leaves l JOIN employees e ON l.employee_id = e.id WHERE e.tenant_id = $1
      ORDER BY timestamp DESC LIMIT 10`,
     [tenantId]
   );

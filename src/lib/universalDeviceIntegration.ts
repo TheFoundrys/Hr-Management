@@ -160,34 +160,33 @@ export class UniversalDeviceManager {
   private async storeAttendanceRecord(userId: string, log: UniversalDeviceLog): Promise<void> {
     const isCheckIn = log.type === 'check-in' || log.type === 'break-in';
     const status = isCheckIn ?
-      (log.timestamp.getHours() >= 9 ? 'Late' : 'Present') :
-      'Completed';
+      (log.timestamp.getHours() >= 9 ? 'LATE' : 'PRESENT') :
+      'PRESENT';
 
     // Check if record already exists for this date
     const existingRecord = await query(
-      `SELECT id FROM "Attendance"
-       WHERE "universityId" = (SELECT "universityId" FROM "User" WHERE id = $1 LIMIT 1)
-       AND DATE("date") = DATE($2)`,
+      `SELECT id FROM attendance
+       WHERE employee_id = (SELECT id FROM employees WHERE user_id = $1 LIMIT 1)
+       AND DATE(date) = DATE($2)`,
       [userId, log.timestamp]
     );
 
-    if (existingRecord?.rowCount && existingRecord.rowCount > 0) {
+    if (existingRecord && existingRecord.rows.length > 0) {
       // Update existing record
       await query(
-        `UPDATE "Attendance"
-         SET "checkOut" = $3, status = $4
-         WHERE "universityId" = (SELECT "universityId" FROM "User" WHERE id = $1 LIMIT 1)
-         AND DATE("date") = DATE($2)`,
+        `UPDATE attendance
+         SET check_out = $3, status = $4, updated_at = NOW()
+         WHERE employee_id = (SELECT id FROM employees WHERE user_id = $1 LIMIT 1)
+         AND DATE(date) = DATE($2)`,
         [userId, log.timestamp, isCheckIn ? null : log.timestamp, status]
       );
     } else {
       // Create new record
       await query(
-        `INSERT INTO "Attendance"
-         (id, "universityId", "deviceId", "checkIn", "checkOut", status, "date")
-         VALUES ($1, (SELECT "universityId" FROM "User" WHERE id = $2 LIMIT 1), $3, $4, $5, $6, $7)`,
+        `INSERT INTO attendance
+         (employee_id, device_id, check_in, check_out, status, date)
+         VALUES ((SELECT id FROM employees WHERE user_id = $1 LIMIT 1), $2, $3, $4, $5, $6)`,
         [
-          `universal-${Date.now()}-${log.deviceUserId}`,
           userId,
           log.deviceId,
           isCheckIn ? log.timestamp : null,
@@ -202,9 +201,9 @@ export class UniversalDeviceManager {
   // Get user mapping (simplified version)
   private async getUserMapping(tenantId: string, deviceId: string, deviceUserId: string): Promise<any | null> {
     const result = await query(
-      `SELECT * FROM "TenantUser"
-       WHERE "tenantId" = (SELECT id FROM "Tenant" WHERE subdomain = $1 LIMIT 1)
-       AND "deviceId" = $2 AND "deviceUserId" = $3 AND "isActive" = true LIMIT 1`,
+      `SELECT * FROM tenant_users
+       WHERE tenant_id = (SELECT id FROM tenants WHERE subdomain = $1 OR id::text = $1 LIMIT 1)
+       AND device_id = $2 AND device_user_id = $3 AND is_active = true LIMIT 1`,
       [tenantId, deviceId, deviceUserId]
     );
 
@@ -221,7 +220,7 @@ export class UniversalDeviceManager {
       try {
         await this.connectDevice(device);
       } catch (error) {
-        console.error(`❌ Failed to connect to device ${device.deviceId}:`, error);
+        console.error(`❌ Failed to connect to device ${device.device_id}:`, error);
       }
     }
 
@@ -232,7 +231,7 @@ export class UniversalDeviceManager {
           const logs = await this.fetchLogs(device);
           await this.processLogs(tenantId, logs);
         } catch (error) {
-          console.error(`❌ Failed to fetch logs from device ${device.deviceId}:`, error);
+          console.error(`❌ Failed to fetch logs from device ${device.device_id}:`, error);
         }
       }
     }, 30000); // 30 seconds
@@ -241,8 +240,8 @@ export class UniversalDeviceManager {
   // Get tenant devices (simplified)
   private async getTenantDevices(tenantId: string): Promise<any[]> {
     const result = await query(
-      `SELECT * FROM "TenantDevice"
-       WHERE "tenantId" = (SELECT id FROM "Tenant" WHERE subdomain = $1 LIMIT 1)
+      `SELECT * FROM tenant_devices
+       WHERE tenant_id = (SELECT id FROM tenants WHERE subdomain = $1 OR id::text = $1 LIMIT 1)
        AND status = 'active'`,
       [tenantId]
     );

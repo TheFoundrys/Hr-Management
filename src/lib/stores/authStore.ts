@@ -4,8 +4,9 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'teaching' | 'non-teaching';
+  role: 'admin' | 'teaching' | 'non-teaching' | 'staff' | string;
   tenantId: string;
+  employeeId?: string;
 }
 
 interface AuthState {

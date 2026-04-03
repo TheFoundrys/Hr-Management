@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { tenantManager } from '@/lib/multiTenant';
+import { globalTenantManager } from '@/lib/multiTenant';
 import { deviceManager } from '@/lib/universalDeviceIntegration';
 
 export async function POST(request: Request) {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     // Add device to tenant
-    const device = await tenantManager.addDevice(tenantId, {
+    const device = await globalTenantManager.addDevice(tenantId, {
       tenantId,
       deviceId: deviceData.deviceId,
       deviceType: deviceData.deviceType,
