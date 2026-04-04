@@ -13,13 +13,24 @@ interface Employee {
   role: string;
   department_name: string;
   designation_name: string;
-  manager_name: string;
+  reporting_name: string;
 }
 
 interface Department {
   id: string;
   name: string;
 }
+
+const PREDEFINED_DEPARTMENTS = [
+  'School of Computer Science',
+  'Department of Mathematics',
+  'Faculty of Physics',
+  'School of Business & Economics',
+  'Department of Humanities',
+  'School of Engineering',
+  'Faculty of Law',
+  'Administration & Registry'
+];
 
 export default function EmployeesPage() {
   const { user } = useAuthStore();
@@ -35,9 +46,9 @@ export default function EmployeesPage() {
     employeeId: '',
     name: '',
     email: '',
-    role: 'STAFF',
+    role: 'FACULTY',
     departmentId: '',
-    managerId: '',
+    reportsToId: '',
     salary: { basic: 0, hra: 0, allowances: 0, deductions: 0 }
   });
 
@@ -46,18 +57,31 @@ export default function EmployeesPage() {
     try {
       const [empRes, deptRes] = await Promise.all([
         fetch('/api/employees'),
-        fetch('/api/departments')
+        fetch('/api/admin/scheduling/departments')
       ]);
       const empData = await empRes.json();
       const deptData = await deptRes.json();
 
       if (empData.success) {
         setEmployees(empData.employees);
-        setAllManagers(empData.employees); // For manager selection
+        setAllManagers(empData.employees); 
       }
-      if (deptData.success) setDepartments(deptData.departments);
+      
+      // Merge backend departments with predefined ones to ensure list is never empty
+      let deptList = deptData.success ? deptData.departments : [];
+      const existingNames = new Set(deptList.map((d: any) => d.name));
+      
+      PREDEFINED_DEPARTMENTS.forEach(name => {
+        if (!existingNames.has(name)) {
+          deptList.push({ id: `pre-${name}`, name });
+        }
+      });
+      
+      setDepartments(deptList);
     } catch (err) {
       console.error(err);
+      // Fallback if API fails
+      setDepartments(PREDEFINED_DEPARTMENTS.map(name => ({ id: `pre-${name}`, name })));
     } finally {
       setLoading(false);
     }
@@ -80,8 +104,8 @@ export default function EmployeesPage() {
       if (data.success) {
         setShowModal(false);
         setForm({
-          employeeId: '', name: '', email: '', role: 'STAFF', 
-          departmentId: '', managerId: '', 
+          employeeId: '', name: '', email: '', role: 'FACULTY', 
+          departmentId: '', reportsToId: '', 
           salary: { basic: 0, hra: 0, allowances: 0, deductions: 0 }
         });
         fetchInitialData();
@@ -148,7 +172,7 @@ export default function EmployeesPage() {
                   <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Full Name</th>
                   <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Role & Security</th>
                   <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Department</th>
-                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Manager</th>
+                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Reporting To</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -185,7 +209,7 @@ export default function EmployeesPage() {
                       </div>
                     </td>
                     <td className="py-5 px-6 text-sm text-white/30 italic">
-                      {emp.manager_name || 'No Direct Manager'}
+                      {emp.reporting_name || 'No Direct HOD/Dean'}
                     </td>
                   </tr>
                 ))}
@@ -219,12 +243,12 @@ export default function EmployeesPage() {
                   <input type="text" required value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all" placeholder="TFU-00001" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Security Role</label>
-                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
-                    <option value="STAFF">Staff (Standard)</option>
-                    <option value="HOD">HOD (Department Head)</option>
-                    <option value="HR">HR Admin</option>
-                    <option value="ADMIN">System Administrator</option>
+                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Academic Role</label>
+                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value, departmentId: '', reportsToId: ''})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
+                    <option value="FACULTY">Faculty (Teaching)</option>
+                    <option value="HOD">HOD (Head of Dept)</option>
+                    <option value="STAFF">Administrative Staff</option>
+                    <option value="ADMIN">Dean / System Admin</option>
                   </select>
                 </div>
               </div>
@@ -243,15 +267,19 @@ export default function EmployeesPage() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Department</label>
                   <select required value={form.departmentId} onChange={e => setForm({...form, departmentId: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
-                    <option value="">Select Domain</option>
+                    <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Reporting Manager</label>
-                  <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
-                    <option value="">No Manager (Independent)</option>
-                    {allManagers.map(m => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
+                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">
+                    {form.role === 'HOD' ? 'Reporting Dean' : 'Reporting HOD'}
+                  </label>
+                  <select value={form.reportsToId} onChange={e => setForm({...form, reportsToId: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
+                    <option value="">No Direct Reporting</option>
+                    {allManagers
+                      ?.filter(m => (form.role === 'HOD' ? m.role === 'ADMIN' : m.role === 'HOD'))
+                      .map(m => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
                   </select>
                 </div>
               </div>

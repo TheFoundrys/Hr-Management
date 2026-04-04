@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, Filter, Loader2 } from 'lucide-react';
+import { Clock, Filter, Loader2, Fingerprint } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 
 interface AttendanceRecord {
@@ -31,8 +31,22 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [attendanceSettings, setAttendanceSettings] = useState<{ attendance_mode?: string }>({});
 
-  useEffect(() => { fetchAttendance(); }, [date, statusFilter, user]);
+  useEffect(() => { 
+    fetchAttendance(); 
+    fetchSettings();
+  }, [date, statusFilter, user]);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/attendance/settings');
+      const data = await res.json();
+      if (data.success) setAttendanceSettings(data.settings);
+    } catch (err) {
+      console.error('Failed to fetch settings');
+    }
+  };
 
   const fetchAttendance = async () => {
     setLoading(true);
@@ -107,27 +121,36 @@ export default function AttendancePage() {
           </div>
         ) : (
           date === new Date().toISOString().split('T')[0] && (
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleClockAction('check_in')}
-                disabled={loading || records.some(r => r.checkIn)}
-                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2
-                  ${records.some(r => r.checkIn) 
-                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' 
-                    : 'gradient-primary text-white shadow-lg shadow-primary-500/20 active:scale-95'}`}
-              >
-                Clock In
-              </button>
-              <button
-                onClick={() => handleClockAction('check_out')}
-                disabled={loading || !records.some(r => r.checkIn) || records.some(r => r.checkOut)}
-                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2
-                  ${(!records.some(r => r.checkIn) || records.some(r => r.checkOut))
-                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
-                    : 'bg-white/10 text-white hover:bg-white/20 border border-white/10 active:scale-95'}`}
-              >
-                Clock Out
-              </button>
+            <div className="flex flex-col items-end gap-2">
+              {(attendanceSettings.attendance_mode === 'BIOMETRIC') ? (
+                <div className="flex items-center gap-2 px-4 py-2 bg-warning-500/10 border border-warning-500/20 rounded-xl text-warning-500 text-xs font-medium">
+                  <Fingerprint className="w-3.5 h-3.5" />
+                  Biometric Attendance Required
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleClockAction('check_in')}
+                    disabled={loading || records.some(r => r.checkIn)}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2
+                      ${records.some(r => r.checkIn) 
+                        ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' 
+                        : 'gradient-primary text-white shadow-lg shadow-primary-500/20 active:scale-95'}`}
+                  >
+                    Clock In
+                  </button>
+                  <button
+                    onClick={() => handleClockAction('check_out')}
+                    disabled={loading || !records.some(r => r.checkIn) || records.some(r => r.checkOut)}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2
+                      ${(!records.some(r => r.checkIn) || records.some(r => r.checkOut))
+                        ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                        : 'bg-white/10 text-white hover:bg-white/20 border border-white/10 active:scale-95'}`}
+                  >
+                    Clock Out
+                  </button>
+                </div>
+              )}
             </div>
           )
         )}

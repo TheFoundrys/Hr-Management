@@ -1,35 +1,42 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { globalTenantManager } from '@/lib/multiTenant';
-import crypto from 'crypto';
+import { query } from '@/lib/db/postgres';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
 
 // Universal HR modules that work across all tenants
 export async function POST(request: Request) {
   try {
-    const { tenantId, module, action, data } = await request.json();
+    const { module, action, data } = await request.json();
 
-    if (!tenantId || !module || !action) {
+    if (!module || !action) {
       return NextResponse.json({
-        error: 'Tenant ID, module, and action are required'
+        error: 'Module and action are required'
       }, { status: 400 });
     }
 
-    // Get tenant info
-    const tenant = await globalTenantManager.initializeTenant(request);
+    // Get tenant info from token
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    
+    const tenantId = payload.tenantId;
 
     switch (module) {
       case 'faculty':
-        return await handleFaculty(tenant.id, action, data);
+        return await handleFaculty(tenantId, action, data);
       case 'interns':
-        return await handleInterns(tenant.id, action, data);
+        return await handleInterns(tenantId, action, data);
       case 'attendance':
-        return await handleAttendance(tenant.id, action, data);
+        return await handleAttendance(tenantId, action, data);
       case 'leave':
-        return await handleLeave(tenant.id, action, data);
+        return await handleLeave(tenantId, action, data);
       case 'documents':
-        return await handleDocuments(tenant.id, action, data);
+        return await handleDocuments(tenantId, action, data);
       case 'dashboard':
-        return await handleDashboard(tenant.id, action, data);
+        return await handleDashboard(tenantId, action, data);
       default:
         return NextResponse.json({ error: 'Invalid module' }, { status: 400 });
     }
@@ -45,33 +52,41 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId');
     const module = searchParams.get('module');
 
-    if (!tenantId || !module) {
+    if (!module) {
       return NextResponse.json({
-        error: 'Tenant ID and module are required'
+        error: 'Module is required'
       }, { status: 400 });
     }
 
-    const tenant = await globalTenantManager.initializeTenant(request);
+    // Get tenant info from token
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    
+    const tenantId = payload.tenantId;
 
     switch (module) {
       case 'faculty':
-        return await getFaculty(tenant.id);
+        return await getFaculty(tenantId);
       case 'interns':
-        return await getInterns(tenant.id);
+        return await getInterns(tenantId);
       case 'attendance':
-        return await getAttendance(tenant.id, searchParams);
+        return await getAttendance(tenantId, searchParams);
       case 'leave':
-        return await getLeave(tenant.id);
+        return await getLeave(tenantId);
       case 'documents':
-        return await getDocuments(tenant.id);
+        return await getDocuments(tenantId);
       case 'dashboard':
-        return await getDashboard(tenant.id);
+        return await getDashboard(tenantId);
       default:
         return NextResponse.json({ error: 'Invalid module' }, { status: 400 });
     }
+
 
   } catch (error) {
     console.error('Universal HR GET error:', error);
@@ -240,7 +255,7 @@ async function getInterns(tenantId: string) {
 async function handleAttendance(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'manual-add':
-      // Lookup employee UUID from universityId
+      // Lookup employee UUID from university_id
       const empRes = await query('SELECT id FROM employees WHERE university_id = $1 AND tenant_id = $2', [data.universityId, tenantId]);
       if (empRes.rows.length === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
       const employeeId = empRes.rows[0].id;
@@ -325,7 +340,7 @@ async function getAttendance(tenantId: string, searchParams: URLSearchParams) {
 async function handleLeave(tenantId: string, action: string, data: any) {
   switch (action) {
     case 'request':
-      // Lookup employee UUID from universityId
+      // Lookup employee UUID from university_id
       const empRes = await query('SELECT id FROM employees WHERE university_id = $1 AND tenant_id = $2', [data.universityId, tenantId]);
       if (empRes.rows.length === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
       const employeeId = empRes.rows[0].id;

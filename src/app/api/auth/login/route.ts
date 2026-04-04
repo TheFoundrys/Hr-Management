@@ -20,10 +20,12 @@ export async function POST(request: Request) {
     const normalizedEmail = email.toLowerCase();
 
     // Find user in PostgreSQL
-    const result = await query(
-      'SELECT id, name, email, password_hash, role, tenant_id, employee_id FROM users WHERE email = $1 AND is_active = true',
-      [normalizedEmail]
-    );
+    const result = await query(`
+      SELECT u.id, u.name, u.email, u.password_hash, u.role, u.tenant_id, u.employee_id, e.department_id
+      FROM users u
+      LEFT JOIN employees e ON u.employee_id = e.employee_id
+      WHERE u.email = $1 AND u.is_active = true
+    `, [normalizedEmail]);
 
     const user = result.rows[0];
 
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
       tenantId: user.tenant_id,
       name: user.name,
       employeeId: user.employee_id,
+      departmentId: user.department_id,
     });
 
     const response = NextResponse.json({
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
         role: user.role,
         tenantId: user.tenant_id,
         employeeId: user.employee_id,
+        departmentId: user.department_id,
       },
     });
 

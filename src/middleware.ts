@@ -48,7 +48,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only routes
-  if (adminOnlyPaths.some((path) => pathname.startsWith(path)) && payload.role?.toLowerCase() !== 'admin') {
+  const isAdminPath = adminOnlyPaths.some((path) => pathname.startsWith(path));
+  const isMePath = pathname === '/api/employees/me';
+
+  if (isAdminPath && !isMePath && payload.role?.toLowerCase() !== 'admin') {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }

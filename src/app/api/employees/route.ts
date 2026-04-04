@@ -13,44 +13,95 @@ export async function GET(request: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
-    const { tenantId, role } = payload;
+    const { tenantId, userId } = payload;
+    const baseRole = (payload.role || 'STAFF').toUpperCase();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const scope = searchParams.get('scope'); // 'all' or 'team'
 
-    let queryString = `
-      SELECT e.*, d.name as department_name, ds.name as designation_name,
-             m.first_name || ' ' || m.last_name as manager_name
-      FROM employees e
-      LEFT JOIN departments d ON e.department_id = d.id
-      LEFT JOIN designations ds ON e.designation_id = ds.id
-      LEFT JOIN employees m ON e.manager_id = m.id
-      WHERE e.tenant_id = $1 AND e.is_active = true
-    `;
-    const params: unknown[] = [tenantId];
+    // 1. Get current employee's context
+    const empCtxRes = await query(
+      'SELECT id, department_id FROM employees WHERE user_id = $1 AND tenant_id = $2',
+      [userId, tenantId]
+    );
+    const currentEmployeeId = empCtxRes.rows[0]?.id;
+    const currentDepartmentId = empCtxRes.rows[0]?.department_id;
 
-    if (search) {
-      params.push(`%${search}%`);
-      queryString += ` AND (e.first_name ILIKE $2 OR e.last_name ILIKE $2 OR e.email ILIKE $2 OR e.university_id ILIKE $2)`;
+    let queryString = '';
+    let params: any[] = [tenantId];
+
+    // 2. Determine visibility based on role and scope
+    const isPowerful = ['ADMIN', 'HR'].includes(baseRole);
+    const effectiveScope = isPowerful ? (scope || 'all') : 'team';
+
+    if (effectiveScope === 'all' && isPowerful) {
+      queryString = `
+        SELECT e.*, d.name as department_name, ds.name as designation_name,
+               m.first_name || ' ' || m.last_name as reporting_name
+        FROM employees e
+        LEFT JOIN departments d ON e.department_id = d.id
+        LEFT JOIN designations ds ON e.designation_id = ds.id
+        LEFT JOIN employees m ON e.manager_id = m.id
+        WHERE e.tenant_id = $1 AND e.is_active = true
+      `;
+      if (search) {
+        params.push(`%${search}%`);
+        queryString += ` AND (e.first_name ILIKE $2 OR e.last_name ILIKE $2 OR e.email ILIKE $2 OR e.university_id ILIKE $2)`;
+      }
+      queryString += ' ORDER BY d.name, e.first_name';
+    } else {
+      // Scoped View (Team/Department)
+      if (baseRole === 'HOD' && currentDepartmentId) {
+        queryString = `
+          SELECT e.*, d.name as department_name, ds.name as designation_name,
+                 m.first_name || ' ' || m.last_name as reporting_name,
+                 (SELECT COUNT(*) FROM employees r WHERE r.manager_id = e.id) as reports_count
+          FROM employees e
+          LEFT JOIN departments d ON e.department_id = d.id
+          LEFT JOIN designations ds ON e.designation_id = ds.id
+          LEFT JOIN employees m ON e.manager_id = m.id
+          WHERE e.tenant_id = $1 AND e.department_id = $2 AND e.is_active = true
+        `;
+        params.push(currentDepartmentId);
+        if (search) {
+          params.push(`%${search}%`);
+          queryString += ` AND (e.first_name ILIKE $3 OR e.last_name ILIKE $3 OR e.email ILIKE $3)`;
+        }
+        queryString += ' ORDER BY e.first_name';
+      } else {
+        // Recursive reporting for Managers/Staff
+        queryString = `
+          WITH RECURSIVE subordinates AS (
+            SELECT id, manager_id, first_name, last_name, email, university_id, department_id, designation_id, role, 0 as level
+            FROM employees
+            WHERE id = $1 AND tenant_id = $2
+            UNION ALL
+            SELECT e.id, e.manager_id, e.first_name, e.last_name, e.email, e.university_id, e.department_id, e.designation_id, e.role, s.level + 1
+            FROM employees e
+            INNER JOIN subordinates s ON s.id = e.manager_id
+            WHERE e.tenant_id = $2 AND e.is_active = true
+          )
+          SELECT s.*, d.name as department_name, ds.name as designation_name,
+                 m.first_name || ' ' || m.last_name as reporting_name,
+                 (SELECT COUNT(*) FROM employees r WHERE r.manager_id = s.id) as reports_count
+          FROM subordinates s
+          LEFT JOIN departments d ON s.department_id = d.id
+          LEFT JOIN designations ds ON s.designation_id = ds.id
+          LEFT JOIN employees m ON s.manager_id = m.id
+          ORDER BY s.level, s.first_name
+        `;
+        params = [currentEmployeeId, tenantId];
+      }
     }
 
-    queryString += ' ORDER BY e.created_at DESC';
     const result = await query(queryString, params);
 
-    // Map DB columns back to frontend-expected format
     const employees = result.rows.map(emp => ({
       ...emp,
-      _id: emp.id,
-      name: `${emp.first_name} ${emp.last_name}`.trim(),
-      employeeId: emp.university_id,
-      department: emp.department_name || 'N/A',
-      designation: emp.designation_name || 'N/A',
-      managerName: emp.manager_name || 'N/A',
-      salary: {
-        basic: emp.salary_basic || 0,
-        hra: emp.salary_hra || 0,
-        allowances: emp.salary_allowances || 0,
-        deductions: emp.salary_deductions || 0
-      }
+      name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+      reporting_name: emp.reporting_name || 'System Admin',
+      department_name: emp.department_name || 'Institutional',
+      designation_name: emp.designation_name || emp.role
     }));
 
     return NextResponse.json({ success: true, employees });
@@ -74,8 +125,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { tenantId } = payload;
 
-    // Standardized fields from Phase 4
-    const { employeeId, name, email, role, departmentId, managerId, salary } = body;
+    // Standardized fields from university onboarding form
+    const { employeeId, name, email, role, departmentId, reportsToId, salary } = body;
     
     if (!employeeId || !name || !email || !role) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -84,17 +135,53 @@ export async function POST(request: Request) {
     const [firstName, ...lastNameParts] = name.split(' ');
     const lastName = lastNameParts.join(' ') || '';
 
+    // Handle department resolution (might be name or ID)
+    let finalDepartmentId = null;
+    if (departmentId && departmentId.trim()) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(departmentId);
+      if (isUuid) {
+        finalDepartmentId = departmentId;
+      } else {
+        // Try to find or create department by name
+        const deptName = departmentId.replace(/^pre-/, '').trim();
+        const deptRes = await query(
+          `INSERT INTO departments (tenant_id, name)
+           VALUES ($1, $2)
+           ON CONFLICT (tenant_id, name) DO UPDATE SET name = EXCLUDED.name
+           RETURNING id`,
+          [tenantId, deptName]
+        );
+        if (deptRes.rows.length > 0) finalDepartmentId = deptRes.rows[0].id;
+      }
+    }
+
+    // Handle manager resolution (similarly, if it's a universityId string instead of UUID)
+    let finalManagerId = null;
+    if (reportsToId && reportsToId.trim()) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(reportsToId);
+      if (isUuid) {
+        finalManagerId = reportsToId;
+      } else {
+        // Try to find manager by university_id
+        const mgrRes = await query(
+          `SELECT id FROM employees WHERE (university_id = $1 OR employee_id = $1) AND tenant_id = $2 LIMIT 1`,
+          [reportsToId, tenantId]
+        );
+        if (mgrRes.rows.length > 0) finalManagerId = mgrRes.rows[0].id;
+      }
+    }
+
     // 1. Transaction to Create Employee and User
     const result = await query(
       `INSERT INTO employees (
         university_id, employee_id, first_name, last_name, email, role, 
         department_id, manager_id, tenant_id, 
         salary_basic, salary_hra, salary_allowances, salary_deductions, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true)
+      ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
       RETURNING *`,
       [
-        employeeId, employeeId, firstName, lastName, email, role, 
-        departmentId || null, managerId || null, tenantId, 
+        employeeId, firstName, lastName, email, role, 
+        finalDepartmentId, finalManagerId, tenantId, 
         salary?.basic || 0, salary?.hra || 0, salary?.allowances || 0, salary?.deductions || 0
       ]
     );

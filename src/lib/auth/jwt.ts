@@ -7,7 +7,8 @@ export interface TokenPayload extends JWTPayload {
   email: string;
   role: 'STAFF' | 'HOD' | 'HR' | 'ADMIN' | string;
   tenantId: string;
-
+  departmentId: string;
+  employeeId?: string;
 }
 
 export async function createToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): Promise<string> {

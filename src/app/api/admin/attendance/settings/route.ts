@@ -17,7 +17,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { enable_ip_validation } = await request.json();
+    const { enable_ip_validation, attendance_mode } = await request.json();
     const tenantId = payload.tenantId;
 
     // Fetch current settings
@@ -27,8 +27,10 @@ export async function PATCH(request: Request) {
     // Update settings
     const updatedSettings = {
       ...currentSettings,
-      enable_ip_validation: !!enable_ip_validation
     };
+
+    if (enable_ip_validation !== undefined) updatedSettings.enable_ip_validation = !!enable_ip_validation;
+    if (attendance_mode !== undefined) updatedSettings.attendance_mode = attendance_mode;
 
     await query(
       'UPDATE tenants SET settings = $1, updated_at = NOW() WHERE id = $2',

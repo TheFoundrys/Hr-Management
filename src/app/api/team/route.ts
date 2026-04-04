@@ -12,7 +12,8 @@ export async function GET() {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
-    const { tenantId, role, userId } = payload;
+    const { tenantId, userId } = payload;
+    const role = (payload.role || 'STAFF').toUpperCase();
     
     // Get internal employee ID and department for the current user
     const empResult = await query(

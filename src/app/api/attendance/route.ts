@@ -45,13 +45,15 @@ export async function GET(request: Request) {
     // Map result columns to frontend-expected camelCase
     const attendance = result.rows.map(row => ({
       ...row,
-      universityId: row.university_id,
+      employeeId: row.university_id || row.employee_id, // Use human readable ID if available
+      internalId: row.id,
       firstName: row.first_name,
       lastName: row.last_name,
-      status: row.status.toLowerCase(),
+      status: (row.status || 'absent').toLowerCase(),
       checkIn: row.check_in,
       checkOut: row.check_out,
-      workingHours: row.working_hours
+      workingHours: row.working_hours,
+      source: row.source
     }));
 
     return NextResponse.json({ success: true, attendance });
