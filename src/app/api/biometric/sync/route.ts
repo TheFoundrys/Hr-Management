@@ -1,44 +1,34 @@
 import { NextResponse } from 'next/server';
 import { ZKService } from '@/lib/biometric/zk-service';
 
+/**
+ * MANUAL SYNC API: THE "BORINGLY SIMPLE" VERSION
+ * Authentication and configuration only. All logic is at the Service Level.
+ */
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const body = await request.json().catch(() => ({}));
     
-    const requestedIp = body.ip || searchParams.get('ip');
-    const deviceIp = requestedIp || process.env.ZKTECO_DEVICE_IP;
+    const deviceIp = body.ip || searchParams.get('ip') || process.env.ZKTECO_DEVICE_IP;
     const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const deviceId = body.deviceId || 'MANUAL-SYNC';
 
     if (!deviceIp) {
-      return NextResponse.json({ error: 'ZKTECO_DEVICE_IP not configured' }, { status: 400 });
+      return NextResponse.json({ error: 'Device IP not configured' }, { status: 400 });
     }
 
-    const zkService = new ZKService(deviceIp);
-    const result = await zkService.syncLogs(tenantId);
-
-    // After syncing raw logs, trigger attendance processing
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    try {
-      await fetch(`${baseUrl}/api/attendance/process`, {
-        method: 'POST',
-        headers: {
-          'x-tenant-id': tenantId,
-        },
-      });
-    } catch (e) {
-      console.warn('⚠️ Sync succeeded but auto-processing attendance failed. User should run it manually.', e);
-    }
+    // High-level orchestration (Connect, Fetch, Insert, Process)
+    const result = await new ZKService(deviceIp).sync(tenantId, deviceId);
 
     return NextResponse.json({
-      message: `Sync successful. New logs: ${result.count}, Total retrieved: ${result.total}`,
-      ...result,
+      success: true,
+      message: `Sync successful. Processed ${result.processing.records} attendance records.`,
+      ...result
     });
+
   } catch (error) {
-    console.error('Manual biometric sync error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Sync failed' },
-      { status: 500 }
-    );
+    console.error('[API] Biometric sync failure:', error instanceof Error ? error.message : String(error));
+    return NextResponse.json({ error: 'Manual sync failed' }, { status: 500 });
   }
 }

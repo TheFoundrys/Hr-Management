@@ -18,12 +18,18 @@ export async function GET(request: Request) {
         pendingLeavesResult,
         recentLeavesResult,
         deptResult,
+        liveEventsResult,
       ] = await Promise.all([
         query('SELECT COUNT(*) FROM employees WHERE tenant_id = $1', [tenantId]),
         query('SELECT status FROM attendance WHERE employee_id IN (SELECT id FROM employees WHERE tenant_id = $1) AND date = $2', [tenantId, today]),
         query("SELECT COUNT(*) FROM leaves l JOIN employees e ON l.employee_id = e.id WHERE e.tenant_id = $1 AND l.status = 'PENDING'", [tenantId]),
         query('SELECT l.*, e.university_id FROM leaves l JOIN employees e ON l.employee_id = e.id WHERE e.tenant_id = $1 ORDER BY l.created_at DESC LIMIT 5', [tenantId]),
         query('SELECT d.name as _id, COUNT(e.id) as count FROM employees e JOIN departments d ON e.department_id = d.id WHERE e.tenant_id = $1 GROUP BY d.name ORDER BY count DESC', [tenantId]),
+        query(`SELECT a.*, e.first_name || ' ' || e.last_name as employee_name, e.university_id as employee_id 
+               FROM attendance a 
+               JOIN employees e ON a.employee_id = e.id 
+               WHERE a.tenant_id = $1 
+               ORDER BY a.created_at DESC LIMIT 10`, [tenantId]),
       ]);
 
       const totalEmployees = parseInt(empCountResult.rows[0].count);
@@ -32,7 +38,7 @@ export async function GET(request: Request) {
       const recentLeaves = recentLeavesResult.rows;
       const departmentStats = deptResult.rows;
 
-      const present = todayAttendance.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').length;
+      const present = todayAttendance.filter((a) => a.status?.toUpperCase() === 'PRESENT' || a.status?.toUpperCase() === 'LATE').length;
       const absent = totalEmployees - present;
 
       // Weekly attendance trend (last 7 days)
@@ -47,14 +53,14 @@ export async function GET(request: Request) {
           [tenantId, dayStr]
         );
         const dayAtt = dayAttResult.rows;
-        const p = dayAtt.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length;
+        const p = dayAtt.filter(a => a.status?.toUpperCase() === 'PRESENT' || a.status?.toUpperCase() === 'LATE').length;
 
         weeklyTrend.push({
           date: dayStr,
           day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
           present: p,
           absent: totalEmployees - p,
-          late: dayAtt.filter(a => a.status === 'LATE').length,
+          late: dayAtt.filter(a => a.status?.toUpperCase() === 'LATE').length,
         });
       }
 
@@ -70,6 +76,12 @@ export async function GET(request: Request) {
           },
           weeklyTrend,
           departmentStats,
+          liveEvents: liveEventsResult.rows.map((a: any) => ({
+            employeeId: a.employee_id,
+            employeeName: a.employee_name,
+            type: a.check_out ? 'check_out' : 'check_in',
+            timestamp: a.created_at
+          })),
           recentLeaves: recentLeaves.map(l => ({ 
             ...l, 
             employeeId: l.university_id, // Use bridge ID for frontend
@@ -121,11 +133,11 @@ export async function GET(request: Request) {
           status: l.status.toLowerCase()
         })),
         stats: {
-          presentDays: myAttendance.filter((a) => a.status === 'present' || a.status === 'late').length,
-          absentDays: myAttendance.filter((a) => a.status === 'absent').length,
-          lateDays: myAttendance.filter((a) => a.status === 'late').length,
-          leaveDays: myAttendance.filter((a) => a.status === 'on-leave' || a.status === 'leave').length,
-          pendingLeaves: myLeaves.filter((l) => l.status === 'pending').length,
+          presentDays: myAttendance.filter((a) => a.status?.toLowerCase() === 'present' || a.status?.toLowerCase() === 'late').length,
+          absentDays: myAttendance.filter((a) => a.status?.toLowerCase() === 'absent').length,
+          lateDays: myAttendance.filter((a) => a.status?.toLowerCase() === 'late').length,
+          leaveDays: myAttendance.filter((a) => ['on-leave', 'leave', 'on duty', 'od'].includes(a.status?.toLowerCase())).length,
+          pendingLeaves: myLeaves.filter((l) => l.status?.toLowerCase() === 'pending').length,
         },
       },
     });

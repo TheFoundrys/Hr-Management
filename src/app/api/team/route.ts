@@ -21,7 +21,7 @@ export async function GET() {
       [userId, tenantId]
     );
     
-    if (empResult.rowCount === 0 && !['ADMIN', 'HR'].includes(role)) {
+    if (empResult.rowCount === 0 && !['ADMIN', 'HR', 'SUPER_ADMIN'].includes(role)) {
       return NextResponse.json({ success: true, team: [] });
     }
 
@@ -31,7 +31,7 @@ export async function GET() {
     let teamQuery = '';
     let queryParams: any[] = [tenantId];
 
-    if (['ADMIN', 'HR'].includes(role)) {
+    if (['ADMIN', 'HR', 'SUPER_ADMIN'].includes(role)) {
       // HR and ADMIN see everyone in the tenant
       teamQuery = `
         SELECT e.*, d.name as department_name, ds.name as designation_name,

@@ -4,26 +4,25 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import {
-  LayoutDashboard, Users, Clock, CalendarOff, Wallet,
+  LayoutDashboard, Users, Clock, Calendar, Wallet,
   LogOut, GraduationCap, ChevronLeft, Menu, Fingerprint,
-  FileText, UserCircle, Shield, Layers, CalendarDays
+  FileText, UserCircle, Shield, CalendarDays, CalendarOff,
+  MessageSquare
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
-  { href: '/team', label: 'My Team', icon: Users, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
-  { href: '/employees', label: 'Employees', icon: Users, roles: ['ADMIN', 'HR'] },
-  { href: '/attendance', label: 'Attendance', icon: Clock, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
-  { href: '/leave', label: 'Leave', icon: CalendarOff, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
-  { href: '/payslips', label: 'Payslips', icon: FileText, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
-  { href: '/salary-structure', label: 'Salary Structure', icon: Wallet, roles: ['ADMIN', 'HR'] },
-  { href: '/biometric', label: 'Biometric', icon: Fingerprint, roles: ['ADMIN'] },
-  { href: '/admin/attendance/network', label: 'Network Security', icon: Shield, roles: ['ADMIN'] },
-  { href: '/profile', label: 'Profile', icon: UserCircle, roles: ['ADMIN', 'HOD', 'HR', 'STAFF'] },
-  { href: '/admin/scheduling', label: 'Class Scheduling', icon: CalendarOff, roles: ['ADMIN', 'HOD'] },
-  { href: '/admin/scheduling/entities', label: 'Master Registry', icon: Layers, roles: ['ADMIN'] },
-  { href: '/faculty/schedule', label: 'My Schedule', icon: CalendarDays, roles: ['HOD', 'STAFF', 'FACULTY'] },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
+  { href: '/team', label: 'My Team', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
+  { href: '/employees', label: 'Employees', icon: Users, roles: ['SUPER_ADMIN', 'ADMIN', 'HR'] },
+  { href: '/attendance', label: 'Attendance', icon: Clock, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
+  { href: '/leave', label: 'Leave', icon: CalendarOff, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
+  { href: '/payslips', label: 'Payslips', icon: FileText, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
+  { href: '/salary-structure', label: 'Salary Structure', icon: Wallet, roles: ['SUPER_ADMIN', 'ADMIN', 'HR'] },
+  { href: '/biometric', label: 'Biometric', icon: Fingerprint, roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { href: '/admin/attendance/network', label: 'Network Security', icon: Shield, roles: ['SUPER_ADMIN', 'ADMIN'] },
+  { href: '/admin/requests', label: 'Support Requests', icon: MessageSquare, roles: ['SUPER_ADMIN', 'ADMIN', 'HR'] },
+  { href: '/profile', label: 'Profile', icon: UserCircle, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
 ];
 
 export function Sidebar() {
@@ -33,7 +32,12 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
   const baseRole = (user?.role || 'STAFF').toUpperCase();
-  const filteredNav = navItems.filter((item) => item.roles.includes(baseRole));
+  const filteredNav = useMemo(() => {
+    return navItems.filter((item) => {
+      if (baseRole === 'SUPER_ADMIN') return true;
+      return item.roles.includes(baseRole);
+    });
+  }, [baseRole]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -45,24 +49,24 @@ export function Sidebar() {
     <>
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-900 border border-slate-800 rounded-lg text-white"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-card border border-border rounded-lg"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5 text-foreground" />
       </button>
 
       <aside
-        className={`fixed top-0 left-0 h-full bg-slate-950 border-r border-slate-800 z-40 transition-all duration-300 flex flex-col
-          ${collapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'w-64'}
+        className={`fixed top-0 left-0 h-full bg-card border-r border-border z-40 transition-all duration-300 flex flex-col
+          ${collapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'w-64'} shadow-soft
         `}
       >
-        <div className="flex items-center gap-3 px-5 py-6 border-b border-slate-800">
-          <div className="w-10 h-10 bg-indigo-600 rounded flex items-center justify-center shrink-0 shadow-lg">
-            <GraduationCap className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-3 px-5 py-6 border-b border-border">
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+            <GraduationCap className="w-5 h-5 text-primary" />
           </div>
-          {!collapsed && <span className="font-bold text-lg text-white tracking-tight">University HR</span>}
+          {!collapsed && <span className="font-bold text-lg text-foreground tracking-tight">University HR</span>}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:block ml-auto text-slate-500 hover:text-white transition-colors"
+            className="hidden lg:block ml-auto text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           </button>
@@ -75,29 +79,29 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-150 group
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 group border border-transparent
                   ${isActive
-                    ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-600/20'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent'}
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'}
                 `}
               >
-                <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                <item.icon className="w-4 h-4 shrink-0" />
                 {!collapsed && <span className="text-sm font-semibold">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 bg-slate-950/50">
+        <div className="p-4 border-t border-border bg-muted/30">
           {!collapsed && (
             <div className="mb-4 px-2">
-              <p className="text-sm font-bold text-slate-200 truncate">{user?.name}</p>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-1">{user?.role}</p>
+              <p className="text-sm font-bold text-foreground truncate">{user?.name}</p>
+              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest leading-none mt-1">{user?.role}</p>
             </div>
           )}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent transition-all"
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all"
           >
             <LogOut className="w-4 h-4 shrink-0" />
             {!collapsed && <span className="text-sm font-bold">Logout</span>}

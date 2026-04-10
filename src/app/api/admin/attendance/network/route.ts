@@ -13,7 +13,7 @@ export async function GET() {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || payload.role?.toLowerCase() !== 'admin') {
+    if (!payload || !['ADMIN', 'SUPER_ADMIN'].includes(payload.role || '')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || payload.role?.toLowerCase() !== 'admin') {
+    if (!payload || !['ADMIN', 'SUPER_ADMIN'].includes(payload.role || '')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

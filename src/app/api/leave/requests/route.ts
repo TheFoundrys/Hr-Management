@@ -34,10 +34,43 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { employeeId, leaveTypeId, startDate, endDate, reason, isHalfDay, halfDayType, substitutionEmployeeId, attachmentUrl } = body;
 
-    // 0. Get employee department
-    const empResult = await query('SELECT department_id FROM employees WHERE employee_id = $1 AND tenant_id = $2', [employeeId, tenantId]);
-    if (empResult.rowCount === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
-    const departmentId = empResult.rows[0].department_id;
+    // 0. Auto-Onboarding Check: Ensure employee record exists
+    let activeEmployeeId = employeeId;
+    let activeDeptId = null;
+
+    let empResult = await query('SELECT department_id FROM employees WHERE employee_id = $1 AND tenant_id = $2', [activeEmployeeId, tenantId]);
+    
+    // If employee record is missing, try to create it using User session info
+    if (empResult.rowCount === 0) {
+      // Find the user to get their details (match by either their null employee_id or the specific one provided)
+      const userResult = await query('SELECT id, name, email FROM users WHERE (employee_id = $1 OR employee_id IS NULL) AND tenant_id = $2 LIMIT 1', [employeeId, tenantId]);
+      
+      if (userResult.rowCount && userResult.rowCount > 0) {
+        const user = userResult.rows[0];
+        const names = user.name.split(' ');
+        const firstName = names[0];
+        const lastName = names.slice(1).join(' ') || 'User';
+        const newEmpId = `TFU-AUTO-${Date.now().toString().slice(-6)}`;
+        const defaultDept = '0bd710c2-bb92-4c77-a67f-013573f25cc0';
+
+        // Create the employee record
+        await query(
+          `INSERT INTO employees (employee_id, university_id, first_name, last_name, email, tenant_id, department_id, user_id, is_active)
+           VALUES ($1, $1, $2, $3, $4, $5, $6, $7, true)`,
+          [newEmpId, firstName, lastName, user.email, tenantId, defaultDept, user.id]
+        );
+
+        // Link the user record
+        await query('UPDATE users SET employee_id = $1, is_active = true WHERE id = $2', [newEmpId, user.id]);
+        
+        activeEmployeeId = newEmpId;
+        activeDeptId = defaultDept;
+      } else {
+        return NextResponse.json({ error: 'Personnel identity not found. Please re-login.' }, { status: 404 });
+      }
+    } else {
+      activeDeptId = empResult.rows[0].department_id;
+    }
 
     // 1. Calculate total days
     const start = new Date(startDate);
@@ -46,35 +79,52 @@ export async function POST(request: Request) {
 
     if (totalDays <= 0) return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
 
-    // 2. Check for balance
-    const balanceResult = await query(
+    // 2. Self-Healing Balance initialization
+    let balanceResult = await query(
       `SELECT remaining_days FROM leave_balances 
        WHERE employee_id = $1 AND leave_type_id = $2 AND tenant_id = $3 AND year = $4`,
-      [employeeId, leaveTypeId, tenantId, new Date().getFullYear()]
+      [activeEmployeeId, leaveTypeId, tenantId, new Date().getFullYear()]
     );
+
+    if (balanceResult.rowCount === 0) {
+      const allTypes = await query('SELECT id, max_per_year FROM leave_types WHERE tenant_id = $1', [tenantId]);
+      for (const lt of allTypes.rows) {
+        await query(
+          `INSERT INTO leave_balances (employee_id, leave_type_id, tenant_id, year, allocated_days, used_days, remaining_days)
+           VALUES ($1, $2, $3, $4, $5, 0, $5)
+           ON CONFLICT (employee_id, leave_type_id, year) DO NOTHING`,
+          [activeEmployeeId, lt.id, tenantId, new Date().getFullYear(), lt.max_per_year]
+        );
+      }
+      balanceResult = await query(
+        `SELECT remaining_days FROM leave_balances 
+         WHERE employee_id = $1 AND leave_type_id = $2 AND tenant_id = $3 AND year = $4`,
+        [activeEmployeeId, leaveTypeId, tenantId, new Date().getFullYear()]
+      );
+    }
 
     if (balanceResult.rowCount === 0 || Number(balanceResult.rows[0].remaining_days) < totalDays) {
       return NextResponse.json({ error: 'Insufficient leave balance' }, { status: 400 });
     }
 
-    // 3. Academic Constraint: Max 2 from same department on any given date in the range
+    // 3. Quota check
     const quotaResult = await query(
-      `SELECT COUNT(*) as count, start_date, end_date FROM leave_requests lr
+      `SELECT COUNT(*) as count FROM leave_requests lr
        JOIN employees e ON lr.employee_id = e.employee_id
        WHERE e.department_id = $1 AND lr.tenant_id = $2 AND lr.status = 'approved'
        AND (
         (lr.start_date <= $3 AND lr.end_date >= $3) OR
         (lr.start_date <= $4 AND lr.end_date >= $4) OR
         (lr.start_date >= $3 AND lr.end_date <= $4)
-       ) GROUP BY lr.start_date, lr.end_date`,
-      [departmentId, tenantId, startDate, endDate]
+       )`,
+      [activeDeptId, tenantId, startDate, endDate]
     );
 
     if (quotaResult.rows.some(r => Number(r.count) >= 2)) {
-      return NextResponse.json({ error: 'Departmental leave quota exceeded for these dates (Max 2 faculty)' }, { status: 400 });
+      return NextResponse.json({ error: 'Departmental leave quota exceeded (Max 2)' }, { status: 400 });
     }
 
-    // 4. Check for overlapping requests for this employee
+    // 4. Overlap check
     const overlapResult = await query(
       `SELECT id FROM leave_requests 
        WHERE employee_id = $1 AND tenant_id = $2 AND status != 'rejected' AND status != 'cancelled'
@@ -83,11 +133,11 @@ export async function POST(request: Request) {
         (start_date <= $4 AND end_date >= $4) OR
         (start_date >= $3 AND end_date <= $4)
        )`,
-      [employeeId, tenantId, startDate, endDate]
+      [activeEmployeeId, tenantId, startDate, endDate]
     );
 
     if (overlapResult.rowCount && overlapResult.rowCount > 0) {
-      return NextResponse.json({ error: 'You already have a leave request for these dates' }, { status: 400 });
+      return NextResponse.json({ error: 'Overlapping request detected' }, { status: 400 });
     }
 
     // 5. Create request
@@ -97,12 +147,12 @@ export async function POST(request: Request) {
         is_half_day, half_day_type, substitution_employee_id, attachment_url, current_level
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1)
       RETURNING *`,
-      [employeeId, leaveTypeId, tenantId, startDate, endDate, totalDays, reason, isHalfDay, halfDayType, substitutionEmployeeId, attachmentUrl]
+      [activeEmployeeId, leaveTypeId, tenantId, startDate, endDate, totalDays, reason, isHalfDay, halfDayType, substitutionEmployeeId, attachmentUrl]
     );
 
     return NextResponse.json({ success: true, request: result.rows[0] });
   } catch (error) {
     console.error('Apply leave error:', error);
-    return NextResponse.json({ error: 'Failed to apply for leave' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server failure. Contact support.' }, { status: 500 });
   }
 }

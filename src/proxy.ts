@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth/jwt';
+import { getRequiredPermissionForPath, hasPermission } from '@/lib/auth/rbac';
 
 const publicPaths = ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/biometric/push', '/api/attendance/ingest'];
-const adminOnlyPaths = ['/api/employees', '/api/payroll/generate'];
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('auth-token')?.value;
-  const rawCookie = request.headers.get('cookie');
-
-  console.log(`[MIDDLEWARE DEBUG] Path: ${pathname}, Has Token: ${!!token}, Cookies: ${rawCookie?.substring(0, 50)}...`);
 
   // Allow static assets
   if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/') {
@@ -47,13 +44,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Admin-only routes
-  const isAdminPath = adminOnlyPaths.some((path) => pathname.startsWith(path));
-  const isMePath = pathname === '/api/employees/me';
-
-  if (isAdminPath && !isMePath && payload.role?.toLowerCase() !== 'admin') {
+  // Advanced RBAC Check
+  const requiredPermission = getRequiredPermissionForPath(pathname);
+  if (requiredPermission && !hasPermission(payload.role, requiredPermission)) {
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+      return NextResponse.json({ error: `Forbidden: Requires ${requiredPermission} permission` }, { status: 403 });
     }
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
@@ -74,5 +69,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next|favicon.ico).*)'],
 };

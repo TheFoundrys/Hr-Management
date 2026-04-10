@@ -198,7 +198,7 @@ export default function EmployeeDetailsPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex gap-2">
            <button 
-            onClick={() => setIsEditModalOpen(true)}
+            onClick={() => router.push(`/employees/${id}/edit`)}
             className="px-4 py-2 border border-primary/20 rounded-lg hover:bg-primary/5 transition-all text-sm font-medium"
            >
             Edit Profile
@@ -206,108 +206,6 @@ export default function EmployeeDetailsPage({ params }: { params: Promise<{ id: 
            <button className="px-4 py-2 bg-primary text-secondary rounded-lg font-medium text-sm">Download ID</button>
         </div>
       </div>
-
-      {/* Edit Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in transition-all">
-          <div className="bg-background border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col scale-100 animate-in zoom-in duration-200">
-            <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-background/80 backdrop-blur-md z-10">
-              <h2 className="text-xl font-bold">Edit Employee Profile</h2>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
-            </div>
-            
-            <div className="p-6 space-y-8">
-              {/* Basic Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                   Basic Information
-                </h3>
-                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">First Name</label>
-                    <input 
-                      className="w-full p-2.5 bg-muted/30 border rounded-lg focus:ring-2 ring-primary/20 outline-none transition-all"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Last Name</label>
-                    <input 
-                      className="w-full p-2.5 bg-muted/30 border rounded-lg focus:ring-2 ring-primary/20 outline-none transition-all"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                    />
-                  </div>
-                 </div>
-              </div>
-
-              {/* Salary & Deductions - HIGHLIGHTED */}
-              <div className="space-y-4 p-6 bg-primary/5 rounded-2xl border border-primary/10">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                   <DollarSign className="w-4 h-4" />
-                   Salary & Deductions
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Basic Salary (₹)</label>
-                    <input 
-                      type="number"
-                      className="w-full p-2.5 bg-background border rounded-lg focus:ring-2 ring-primary/20 outline-none"
-                      value={formData.salary.basic}
-                      onChange={(e) => setFormData({...formData, salary: {...formData.salary, basic: Number(e.target.value)}})}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">HRA (₹)</label>
-                    <input 
-                      type="number"
-                      className="w-full p-2.5 bg-background border rounded-lg focus:ring-2 ring-primary/20 outline-none"
-                      value={formData.salary.hra}
-                      onChange={(e) => setFormData({...formData, salary: {...formData.salary, hra: Number(e.target.value)}})}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Allowances (₹)</label>
-                    <input 
-                      type="number"
-                      className="w-full p-2.5 bg-background border rounded-lg focus:ring-2 ring-primary/20 outline-none"
-                      value={formData.salary.allowances}
-                      onChange={(e) => setFormData({...formData, salary: {...formData.salary, allowances: Number(e.target.value)}})}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-red-500 font-bold">Deductions (₹)</label>
-                    <input 
-                      type="number"
-                      className="w-full p-2.5 bg-red-50/10 border border-red-200 rounded-lg focus:ring-2 ring-red-500/20 outline-none font-bold text-red-600"
-                      value={formData.salary.deductions}
-                      onChange={(e) => setFormData({...formData, salary: {...formData.salary, deductions: Number(e.target.value)}})}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t flex justify-end gap-3 sticky bottom-0 bg-background/80 backdrop-blur-md">
-                <button 
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-6 py-2 border rounded-lg hover:bg-muted font-medium"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-8 py-2 bg-primary text-secondary rounded-lg font-bold shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-[1.02] transition-all disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply Changes'}
-                </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Key Stats & Photo */}
@@ -323,14 +221,14 @@ export default function EmployeeDetailsPage({ params }: { params: Promise<{ id: 
                <span className="text-xs font-medium uppercase tracking-wider text-emerald-500">Active Employment</span>
              </div>
              <div className="grid grid-cols-2 gap-4 w-full mt-6">
-                <div className="p-3 bg-muted/30 rounded-xl">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Efficiency</p>
-                  <p className="text-lg font-bold text-primary">94%</p>
-                </div>
-                <div className="p-3 bg-muted/30 rounded-xl">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Attendance</p>
-                  <p className="text-lg font-bold text-primary">98%</p>
-                </div>
+                 <div className="p-3 bg-muted/30 rounded-xl">
+                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Efficiency</p>
+                   <p className="text-lg font-bold text-primary">{(employee as any).metrics?.efficiency || 100}%</p>
+                 </div>
+                 <div className="p-3 bg-muted/30 rounded-xl">
+                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Attendance</p>
+                   <p className="text-lg font-bold text-primary">{(employee as any).metrics?.attendance || 100}%</p>
+                 </div>
              </div>
           </div>
 
@@ -385,42 +283,41 @@ export default function EmployeeDetailsPage({ params }: { params: Promise<{ id: 
                <div className="space-y-1">
                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-tight">Official ID</p>
                  <p className="font-medium text-lg tracking-wider font-mono bg-muted/40 px-3 py-0.5 rounded w-fit">{employee.universityId}</p>
-               </div>
              </div>
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-card glassmorphic-card p-6 border rounded-2xl relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform duration-700"></div>
-                 <h3 className="font-bold border-b pb-4 mb-6 flex items-center gap-2">
-                   <DollarSign className="w-4 h-4 text-primary" />
-                   Consolidated Salary
-                 </h3>
-                 <div className="space-y-4 relative z-10">
-                   <div className="flex justify-between items-center bg-primary/5 p-3 rounded-xl border border-primary/10">
-                     <p className="text-sm font-semibold">Net Take Home</p>
-                     <p className="text-2xl font-black text-primary">₹{totalMonthly.toLocaleString()}</p>
-                   </div>
-                   <div className="space-y-2 text-sm pt-4">
-                     <div className="flex justify-between text-muted-foreground">
-                        <span>Basic Pay</span>
-                        <span className="font-semibold text-foreground">₹{employee.salary.basic.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-muted-foreground">
-                        <span>HRA</span>
-                        <span className="font-semibold text-foreground">₹{employee.salary.hra.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-muted-foreground">
-                        <span>Spl. Allowances</span>
-                        <span className="font-semibold text-foreground">₹{employee.salary.allowances.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-red-500/80 pt-2 border-t mt-2">
-                        <span className="font-medium">Total Deductions</span>
-                        <span className="font-bold">-₹{employee.salary.deductions.toLocaleString()}</span>
-                     </div>
-                   </div>
-                 </div>
-              </div>
+          </div>
+ 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="bg-card glassmorphic-card p-6 border rounded-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform duration-700"></div>
+                  <h3 className="font-bold border-b pb-4 mb-6 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-primary" />
+                    Consolidated Salary
+                  </h3>
+                  <div className="space-y-4 relative z-10">
+                    <div className="flex justify-between items-center bg-primary/5 p-3 rounded-xl border border-primary/10">
+                      <p className="text-sm font-semibold">Net Take Home</p>
+                      <p className="text-2xl font-black text-primary">₹{totalMonthly.toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-2 text-sm pt-4">
+                      <div className="flex justify-between text-muted-foreground">
+                         <span>Basic Pay</span>
+                         <span className="font-semibold text-foreground">₹{employee.salary.basic.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                         <span>HRA</span>
+                         <span className="font-semibold text-foreground">₹{employee.salary.hra.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                         <span>Spl. Allowances</span>
+                         <span className="font-semibold text-foreground">₹{employee.salary.allowances.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-red-500/80 pt-2 border-t mt-2">
+                         <span className="font-medium">Total Deductions</span>
+                         <span className="font-bold">-₹{employee.salary.deductions.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+               </div>        </div>
 
               <div className="bg-card glassmorphic-card p-6 border rounded-2xl space-y-6">
                 <h3 className="font-bold border-b pb-4 flex items-center gap-2">

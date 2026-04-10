@@ -1,0 +1,4 @@
+PAYSLIP - Apr 2026
+Emp ID: TFU-00005
+Name: Emily Watson
+Net Salary: ₹72636.36

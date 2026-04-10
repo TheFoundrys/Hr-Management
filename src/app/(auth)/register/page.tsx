@@ -2,26 +2,26 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Loader2, Eye, EyeOff } from 'lucide-react';
-import { useAuthStore } from '@/lib/stores/authStore';
+import { GraduationCap, Loader2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setUser } = useAuthStore();
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'teaching' as 'admin' | 'teaching' | 'non-teaching',
+    role: 'FACULTY',
     tenantId: 'default',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
@@ -38,9 +38,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Sync store before redirecting
-      setUser(data.user);
-      router.push('/dashboard');
+      setSuccess(data.message || 'Registration successful. Awaiting admin approval.');
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -48,52 +46,67 @@ export default function RegisterPage() {
     }
   };
 
-  return (
-    <div className="glass-card rounded-2xl p-8 animate-slide-up">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 gradient-primary rounded-2xl mb-4 shadow-lg shadow-primary-500/30">
-          <GraduationCap className="w-8 h-8 text-white" />
+  if (success) {
+    return (
+      <div className="bg-card border border-border rounded-3xl p-10 animate-slide-up text-center shadow-xl">
+        <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-500/10 rounded-3xl mb-6">
+          <CheckCircle2 className="w-10 h-10 text-emerald-500" />
         </div>
-        <h1 className="text-2xl font-bold text-white">Create Account</h1>
-        <p className="text-surface-200/60 text-sm mt-1">Join UniStaff Management System</p>
+        <h1 className="text-2xl font-black text-foreground uppercase tracking-tight mb-3">Identity Registered</h1>
+        <p className="text-muted-foreground text-sm mb-10 leading-relaxed">{success}</p>
+        <a href="/login" className="inline-block w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all">
+          Return to Portal
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-3xl p-10 animate-slide-up shadow-xl">
+      <div className="text-center mb-10">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
+          <GraduationCap className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-black text-foreground uppercase tracking-tight">Create Identity</h1>
+        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-2 leading-none">Join the Academic Network</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-surface-200/80 mb-2">Full Name</label>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Full Name</label>
           <input
             id="register-name"
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-primary-500 transition-colors"
+            className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all"
             placeholder="Dr. John Doe"
             required
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-surface-200/80 mb-2">Email Address</label>
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal Address (Email)</label>
           <input
             id="register-email"
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-primary-500 transition-colors"
+            className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all"
             placeholder="you@university.edu"
             required
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-surface-200/80 mb-2">Password</label>
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Security Key</label>
           <div className="relative">
             <input
               id="register-password"
               type={showPassword ? 'text' : 'password'}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-primary-500 transition-colors pr-12"
+              className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all pr-14"
               placeholder="••••••••"
               required
               minLength={6}
@@ -101,29 +114,30 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-surface-200/80 mb-2">Role</label>
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Role</label>
           <select
             id="register-role"
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as typeof form.role })}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-primary-500 transition-colors"
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground focus:border-primary outline-none transition-all appearance-none cursor-pointer"
           >
-            <option value="teaching" className="bg-surface-900">Teaching Staff</option>
-            <option value="non-teaching" className="bg-surface-900">Non-Teaching Staff</option>
-            <option value="admin" className="bg-surface-900">Admin</option>
+            <option value="FACULTY">Teaching Faculty</option>
+            <option value="STAFF">Non-Teaching Staff</option>
+            <option value="ADMIN">Administrator</option>
+            <option value="HR">HR Manager</option>
           </select>
         </div>
 
         {error && (
-          <div className="px-4 py-3 bg-danger-500/10 border border-danger-500/20 rounded-xl text-danger-500 text-sm">
+          <div className="px-5 py-4 bg-danger/10 border border-danger/20 rounded-2xl text-danger text-xs font-bold uppercase tracking-wider">
             {error}
           </div>
         )}
@@ -132,18 +146,18 @@ export default function RegisterPage() {
           id="register-button"
           type="submit"
           disabled={loading}
-          className="w-full py-3 gradient-primary rounded-xl text-white font-semibold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-          {loading ? 'Creating Account...' : 'Create Account'}
+          {loading ? 'Processing...' : 'Request Access'}
         </button>
       </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-surface-200/50 text-sm">
-          Already have an account?{' '}
-          <a href="/login" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
-            Sign In
+      <div className="mt-10 text-center">
+        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
+          Existing Identity?{' '}
+          <a href="/login" className="text-primary hover:underline decoration-2 underline-offset-4 transition-all">
+            Enter Portal
           </a>
         </p>
       </div>

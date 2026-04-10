@@ -24,58 +24,86 @@ export async function GET(request: Request) {
     }
 
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized. User context missing.' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized credentials' }, { status: 401 });
     }
 
-    // 1. First try to get employee_id from users table
-    const userResult = await query('SELECT email, employee_id FROM users WHERE id = $1', [userId]);
-    const userRow = userResult.rows[0];
-    const email = userRow?.email;
-    const empIdStr = userRow?.employee_id;
+    // 1. Resolve User and current Employee pointer
+    const userResult = await query('SELECT id, name, email, employee_id, role, tenant_id FROM users WHERE id = $1 AND tenant_id = $2', [userId, tenantId]);
+    const user = userResult.rows[0];
 
-    // 2. Get full employee details (Try by university_id first, then fallback to email)
-    let result;
-    if (empIdStr) {
-      result = await query(
-        `SELECT e.*, d.name as department_name, ds.name as designation_name
-         FROM employees e
-         LEFT JOIN departments d ON e.department_id = d.id
-         LEFT JOIN designations ds ON e.designation_id = ds.id
-         WHERE e.university_id = $1 AND e.tenant_id = $2`,
-        [empIdStr, tenantId]
+    if (!user) {
+      return NextResponse.json({ error: 'Identity mismatch' }, { status: 404 });
+    }
+
+    const email = user.email;
+    const empIdStr = user.employee_id;
+
+    // 2. Fetch Employee record joined with Department/Designation
+    let result = await query(
+      `SELECT e.*, d.name as department_name, ds.name as designation_name
+       FROM employees e
+       LEFT JOIN departments d ON e.department_id = d.id
+       LEFT JOIN designations ds ON e.designation_id = ds.id
+       WHERE (e.university_id = $1 OR e.email = $2) AND e.tenant_id = $3 LIMIT 1`,
+      [empIdStr, email, tenantId]
+    );
+
+    // 3. SELF-HEALING: Auto-onboard if personnel record is missing
+    if (result.rowCount === 0) {
+      const names = user.name.split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || 'User';
+      const newEmpId = empIdStr || `TFU-AUTO-${Date.now().toString().slice(-6)}`;
+      const defaultDept = '0bd710c2-bb92-4c77-a67f-013573f25cc0'; // Default: Mathematics
+
+      await query(
+        `INSERT INTO employees (id, employee_id, university_id, first_name, last_name, email, tenant_id, department_id, user_id, is_active, role)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, true, $9)
+         ON CONFLICT (email, tenant_id) DO UPDATE SET user_id = EXCLUDED.user_id`,
+        [crypto.randomUUID(), newEmpId, firstName, lastName, email, tenantId, defaultDept, userId, userRole]
       );
-    }
 
-    if (!result || result.rows.length === 0) {
-      // Fallback: try by email
+      // Link User record if it wasn't already
+      await query('UPDATE users SET employee_id = $1, is_active = true WHERE id = $2', [newEmpId, userId]);
+
+      // Re-fetch the healed record
       result = await query(
         `SELECT e.*, d.name as department_name, ds.name as designation_name
          FROM employees e
          LEFT JOIN departments d ON e.department_id = d.id
          LEFT JOIN designations ds ON e.designation_id = ds.id
-         WHERE e.email = $1 AND e.tenant_id = $2`,
+         WHERE e.email = $1 AND e.tenant_id = $2 LIMIT 1`,
         [email, tenantId]
       );
     }
 
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
-    }
-
     const emp = result.rows[0];
+    const bankAcc = emp.bank_account || '';
+    const maskedAccount = bankAcc.length > 4 ? `****-****-${bankAcc.slice(-4)}` : bankAcc;
+
     const employee = {
       ...emp,
-      name: `${emp.first_name} ${emp.last_name}`.trim(),
-      employee_id: emp.university_id,
+      name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+      firstName: emp.first_name,
+      lastName: emp.last_name,
+      employee_id: emp.employee_id,
+      university_id: emp.university_id,
       department: emp.department_name || 'N/A',
       designation: emp.designation_name || 'N/A',
-      joining_date: emp.join_date,
-      role: userRole,
+      role: userRole || emp.role,
+      bank_account: maskedAccount,
+      joinDate: emp.join_date || emp.created_at,
+      salary: {
+        basic: Number(emp.salary_basic || 0),
+        hra: Number(emp.salary_hra || 0),
+        allowances: Number(emp.salary_allowances || 0),
+        deductions: Number(emp.salary_deductions || 0)
+      }
     };
 
     return NextResponse.json({ success: true, employee });
   } catch (error) {
-    console.error('Get my profile error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('SYSTEM ERROR [Profile Resolution]:', error);
+    return NextResponse.json({ error: 'Internal system fault resolution failed.' }, { status: 500 });
   }
 }

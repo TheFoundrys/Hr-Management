@@ -12,11 +12,12 @@ export async function GET(request: Request) {
     const month = searchParams.get('month');
     const year = searchParams.get('year');
 
-    // Join with employees to filter by tenantId
+    // Join with employees and tenant_users to get hardware mapping
     let queryString = `
-      SELECT a.*, e.university_id, e.first_name, e.last_name 
+      SELECT a.*, e.university_id, e.first_name, e.last_name, tu.device_user_id 
       FROM attendance a 
       JOIN employees e ON a.employee_id = e.id 
+      LEFT JOIN tenant_users tu ON e.user_id = tu.user_id
       WHERE e.tenant_id = $1
     `;
     const params: unknown[] = [tenantId];
@@ -46,13 +47,23 @@ export async function GET(request: Request) {
     const attendance = result.rows.map(row => ({
       ...row,
       employeeId: row.university_id || row.employee_id, // Use human readable ID if available
+      deviceUserId: row.device_user_id || row.university_id || '—',
       internalId: row.id,
       firstName: row.first_name,
       lastName: row.last_name,
       status: (row.status || 'absent').toLowerCase(),
       checkIn: row.check_in,
       checkOut: row.check_out,
-      workingHours: row.working_hours,
+      workingHours: (() => {
+        if (row.check_in && row.check_out) {
+          return Math.round((new Date(row.check_out).getTime() - new Date(row.check_in).getTime()) / (1000 * 60 * 60) * 100) / 100;
+        }
+        if (row.check_in && !row.check_out && new Date(row.date).toDateString() === new Date().toDateString()) {
+           // Live counter for today only
+           return Math.round((new Date().getTime() - new Date(row.check_in).getTime()) / (1000 * 60 * 60) * 100) / 100;
+        }
+        return Number(row.working_hours || 0);
+      })(),
       source: row.source
     }));
 
@@ -75,9 +86,9 @@ export async function POST(request: Request) {
 
     const result = await query(
       `INSERT INTO attendance (
-        employee_id, date, check_in, check_out, status, notes, working_hours, source
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (employee_id, date) DO UPDATE SET
+        employee_id, tenant_id, date, check_in, check_out, status, notes, working_hours, source
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (employee_id, tenant_id, date) DO UPDATE SET
         check_in = COALESCE(EXCLUDED.check_in, attendance.check_in),
         check_out = COALESCE(EXCLUDED.check_out, attendance.check_out),
         status = COALESCE(EXCLUDED.status, attendance.status),
@@ -87,7 +98,7 @@ export async function POST(request: Request) {
         updated_at = NOW()
       RETURNING *`,
       [
-        employeeId, date, 
+        employeeId, tenantId, date, 
         checkIn ? new Date(checkIn) : null, 
         checkOut ? new Date(checkOut) : null,
         (status || 'PRESENT').toUpperCase(), notes || '', workingHours, 'manual'

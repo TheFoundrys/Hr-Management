@@ -9,7 +9,7 @@ export const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['STAFF', 'HOD', 'HR', 'ADMIN']),
+  role: z.string().transform((val) => val.toUpperCase()).pipe(z.enum(['STAFF', 'HOD', 'HR', 'ADMIN', 'FACULTY', 'PENDING'])),
   tenantId: z.string().min(1, 'Tenant ID is required'),
 });
 
@@ -18,7 +18,7 @@ export const employeeSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   phone: z.string().optional().default(''),
-  role: z.enum(['STAFF', 'HOD', 'HR', 'ADMIN']),
+  role: z.string().transform((val) => val.toUpperCase()).pipe(z.enum(['STAFF', 'HOD', 'HR', 'ADMIN', 'FACULTY', 'PENDING'])),
   department: z.string().optional(),
   departmentId: z.string().uuid().optional(),
   managerId: z.string().uuid().optional(),

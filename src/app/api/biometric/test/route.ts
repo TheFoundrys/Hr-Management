@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ZKService } from '@/lib/biometric/zk-service';
 
-const deviceIp = process.env.ZKTECO_DEVICE_IP;
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const requestedIp = searchParams.get('ip');

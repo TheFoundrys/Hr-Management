@@ -33,7 +33,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Sync store before redirecting
       setUser(data.user);
       router.push('/dashboard');
     } catch {
@@ -44,47 +43,45 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="glass-card rounded-2xl p-8 animate-slide-up">
-      {/* Logo */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 gradient-primary rounded-2xl mb-4 shadow-lg shadow-primary-500/30">
-          <GraduationCap className="w-8 h-8 text-white" />
+    <div className="bg-card border border-border rounded-3xl p-10 animate-slide-up shadow-xl">
+      <div className="text-center mb-10">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
+          <GraduationCap className="w-8 h-8 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-white">TheFoundrys</h1>
-        <p className="text-surface-200/60 text-sm mt-1">University Staff Management System</p>
+        <h1 className="text-2xl font-black text-foreground uppercase tracking-tight">University Staff</h1>
+        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-2 leading-none">Authentication Node</p>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-surface-200/80 mb-2">Email Address</label>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal Identity</label>
           <input
             id="login-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-primary-500 transition-colors"
+            className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all"
             placeholder="you@university.edu"
             required
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-surface-200/80 mb-2">Password</label>
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Security Key</label>
           <div className="relative">
             <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-primary-500 transition-colors pr-12"
+              className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all pr-14"
               placeholder="••••••••"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -92,28 +89,34 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="px-4 py-3 bg-danger-500/10 border border-danger-500/20 rounded-xl text-danger-500 text-sm">
+          <div className="px-5 py-4 bg-danger/10 border border-danger/20 rounded-2xl text-danger text-xs font-bold uppercase tracking-wider">
             {error}
           </div>
         )}
+
+        <div className="flex items-center justify-between px-1">
+          <a href="/forgot-password" size="sm" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
+            Forgot Password?
+          </a>
+          <a href="/register" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline underline-offset-4 decoration-2">
+            Create Identity
+          </a>
+        </div>
 
         <button
           id="login-button"
           type="submit"
           disabled={loading}
-          className="w-full py-3 gradient-primary rounded-xl text-white font-semibold shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-          {loading ? 'Signing in...' : 'Sign In'}
+          {loading ? 'Validating...' : 'Authorize Session'}
         </button>
       </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-surface-200/50 text-sm">
-          Don&apos;t have an account?{' '}
-          <a href="/register" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
-            Register
-          </a>
+      <div className="mt-10 text-center">
+        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
+          Secure Institutional HR Management System
         </p>
       </div>
     </div>

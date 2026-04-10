@@ -10,15 +10,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
 
-  // Authentication is handled by middleware.ts
-  // This client-side check is a fallback for store hydration
-
   if (isLoading) {
     return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
-          <p className="text-white/50">Loading...</p>
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-muted-foreground font-medium uppercase tracking-widest text-xs animate-pulse">Initializing System...</p>
         </div>
       </div>
     );
@@ -27,10 +24,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen gradient-bg">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar />
       <main className="lg:ml-64 min-h-screen">
-        <div className="p-6 lg:p-8">{children}</div>
+        <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">{children}</div>
       </main>
     </div>
   );

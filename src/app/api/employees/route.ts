@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
-import { employeeSchema } from '@/lib/utils/validation';
 import { verifyToken } from '@/lib/auth/jwt';
 import { cookies } from 'next/headers';
+import { hasPermission } from '@/lib/auth/rbac';
+import { autoLinkBiometric } from '@/lib/attendance/engine';
 
 export async function GET(request: Request) {
   try {
@@ -13,11 +14,25 @@ export async function GET(request: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
-    const { tenantId, userId } = payload;
-    const baseRole = (payload.role || 'STAFF').toUpperCase();
+    const { tenantId, userId, role } = payload;
+    const baseRole = (role || 'STAFF').toUpperCase();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const scope = searchParams.get('scope'); // 'all' or 'team'
+
+    // Check RBAC permission
+    if (!hasPermission(baseRole, 'VIEW_ALL_EMPLOYEES') && !hasPermission(baseRole, 'VIEW_TEAM')) {
+       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const canViewPayroll = hasPermission(baseRole, 'MANAGE_PAYROLL');
+    
+    // Core employee fields (No bank details or raw salary unless authorized)
+    const empFields = `
+      e.id, e.university_id, e.first_name, e.last_name, e.email, e.phone, e.role, e.is_active,
+      e.department_id, e.designation_id, e.manager_id
+      ${canViewPayroll ? ', e.salary_basic, e.salary_hra, e.salary_allowances, e.salary_deductions' : ''}
+    `;
 
     // 1. Get current employee's context
     const empCtxRes = await query(
@@ -30,13 +45,12 @@ export async function GET(request: Request) {
     let queryString = '';
     let params: any[] = [tenantId];
 
-    // 2. Determine visibility based on role and scope
-    const isPowerful = ['ADMIN', 'HR'].includes(baseRole);
+    const isPowerful = hasPermission(baseRole, 'VIEW_ALL_EMPLOYEES');
     const effectiveScope = isPowerful ? (scope || 'all') : 'team';
 
     if (effectiveScope === 'all' && isPowerful) {
       queryString = `
-        SELECT e.*, d.name as department_name, ds.name as designation_name,
+        SELECT ${empFields}, d.name as department_name, ds.name as designation_name,
                m.first_name || ' ' || m.last_name as reporting_name
         FROM employees e
         LEFT JOIN departments d ON e.department_id = d.id
@@ -53,7 +67,7 @@ export async function GET(request: Request) {
       // Scoped View (Team/Department)
       if (baseRole === 'HOD' && currentDepartmentId) {
         queryString = `
-          SELECT e.*, d.name as department_name, ds.name as designation_name,
+          SELECT ${empFields}, d.name as department_name, ds.name as designation_name,
                  m.first_name || ' ' || m.last_name as reporting_name,
                  (SELECT COUNT(*) FROM employees r WHERE r.manager_id = e.id) as reports_count
           FROM employees e
@@ -69,14 +83,15 @@ export async function GET(request: Request) {
         }
         queryString += ' ORDER BY e.first_name';
       } else {
-        // Recursive reporting for Managers/Staff
+        const subFields = `id, manager_id, first_name, last_name, email, university_id, department_id, designation_id, role, phone, is_active ${canViewPayroll ? ', salary_basic, salary_hra, salary_allowances, salary_deductions' : ''}`;
+        
         queryString = `
           WITH RECURSIVE subordinates AS (
-            SELECT id, manager_id, first_name, last_name, email, university_id, department_id, designation_id, role, 0 as level
+            SELECT ${subFields}, 0 as level
             FROM employees
             WHERE id = $1 AND tenant_id = $2
             UNION ALL
-            SELECT e.id, e.manager_id, e.first_name, e.last_name, e.email, e.university_id, e.department_id, e.designation_id, e.role, s.level + 1
+            SELECT e.${subFields.replace(/,/g, ', e.')}, s.level + 1
             FROM employees e
             INNER JOIN subordinates s ON s.id = e.manager_id
             WHERE e.tenant_id = $2 AND e.is_active = true
@@ -118,17 +133,23 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || !['ADMIN', 'HR'].includes(payload.role)) {
+    if (!payload || !['ADMIN', 'HR', 'SUPER_ADMIN'].includes(payload.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { tenantId } = payload;
+    const { tenantId, role: currentUserRole } = payload;
+    const { employeeId, name, email, role: targetRole, departmentId, reportsToId, salary, biometricId } = body;
 
-    // Standardized fields from university onboarding form
-    const { employeeId, name, email, role, departmentId, reportsToId, salary } = body;
+    // Enforce role restrictions
+    if (targetRole === 'ADMIN' && currentUserRole !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Only Super Admin can create Admin accounts' }, { status: 403 });
+    }
+    if (targetRole === 'SUPER_ADMIN') {
+       return NextResponse.json({ error: 'Super Admin accounts are single-instance only' }, { status: 403 });
+    }
     
-    if (!employeeId || !name || !email || !role) {
+    if (!employeeId || !name || !email || !targetRole) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -172,21 +193,40 @@ export async function POST(request: Request) {
     }
 
     // 1. Transaction to Create Employee and User
+    // Use a default password 'welcome123' if not provided (hashed)
+    const { hashPassword } = await import('@/lib/auth/password');
+    const defaultHash = await hashPassword('welcome123');
+
     const result = await query(
-      `INSERT INTO employees (
-        university_id, employee_id, first_name, last_name, email, role, 
-        department_id, manager_id, tenant_id, 
-        salary_basic, salary_hra, salary_allowances, salary_deductions, is_active
-      ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
+      `WITH new_emp AS (
+        INSERT INTO employees (
+          university_id, employee_id, first_name, last_name, email, role, 
+          department_id, manager_id, tenant_id, 
+          salary_basic, salary_hra, salary_allowances, salary_deductions, is_active, biometric_id
+        ) VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, $14)
+        RETURNING id, university_id, first_name, last_name, email, role, tenant_id
+      )
+      INSERT INTO users (name, email, password_hash, role, tenant_id, employee_id, is_active, is_verified)
+      SELECT first_name || ' ' || last_name, email, $13, role, tenant_id, university_id, true, false
+      FROM new_emp
       RETURNING *`,
       [
-        employeeId, firstName, lastName, email, role, 
+        employeeId, firstName, lastName, email, targetRole, 
         finalDepartmentId, finalManagerId, tenantId, 
-        salary?.basic || 0, salary?.hra || 0, salary?.allowances || 0, salary?.deductions || 0
+        salary?.basic || 0, salary?.hra || 0, salary?.allowances || 0, salary?.deductions || 0,
+        defaultHash, biometricId || employeeId
       ]
     );
 
-    return NextResponse.json({ success: true, employee: result.rows[0] }, { status: 201 });
+    // 2. Trigger Auto-Link for biometric logs
+    const newEmployee = result.rows[0];
+    const targetBiometricId = biometricId || employeeId;
+    if (targetBiometricId) {
+      // Trigger asynchronously but don't wait to return response
+      autoLinkBiometric(targetBiometricId, tenantId).catch(console.error);
+    }
+
+    return NextResponse.json({ success: true, employee: newEmployee }, { status: 201 });
   } catch (error: any) {
     console.error('Create employee error:', error);
     if (error.code === '23505') {
@@ -203,7 +243,7 @@ export async function PUT(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || !['ADMIN', 'HR'].includes(payload.role)) {
+    if (!payload || !['ADMIN', 'HR', 'SUPER_ADMIN'].includes(payload.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -211,7 +251,7 @@ export async function PUT(request: Request) {
     const { tenantId } = payload;
     const { university_id, ...updateData } = body;
 
-    const { first_name, last_name, email, phone, role, department_id, manager_id, salary, is_active } = updateData;
+    const { first_name, last_name, email, phone, role, department_id, manager_id, salary, is_active, biometric_id } = updateData;
 
     const result = await query(
       `UPDATE employees SET
@@ -227,6 +267,7 @@ export async function PUT(request: Request) {
         salary_allowances = COALESCE($10, salary_allowances),
         salary_deductions = COALESCE($11, salary_deductions),
         is_active = COALESCE($13, is_active),
+        biometric_id = COALESCE($15, biometric_id),
         updated_at = NOW()
       WHERE university_id = $14 AND tenant_id = $12
       RETURNING *`,
@@ -234,7 +275,7 @@ export async function PUT(request: Request) {
         first_name, last_name, email, phone, role, 
         department_id, manager_id,
         salary?.basic, salary?.hra, salary?.allowances, salary?.deductions,
-        tenantId, is_active, university_id
+        tenantId, is_active, university_id, biometric_id
       ]
     );
 

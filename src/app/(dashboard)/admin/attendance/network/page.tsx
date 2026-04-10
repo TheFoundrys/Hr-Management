@@ -1,228 +1,83 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import { Shield, Plus, Trash2, Globe, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-
-interface NetworkPolicy {
-  id: string;
-  ip_address_or_range: string;
-  label: string;
-  is_active: boolean;
-}
+import { Shield, Plus, Trash2, Globe, Loader2 } from 'lucide-react';
 
 export default function NetworkPoliciesPage() {
-  const [policies, setPolicies] = useState<NetworkPolicy[]>([]);
-  const [settings, setSettings] = useState<{ enable_ip_validation?: boolean }>({});
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [newPolicy, setNewPolicy] = useState({ ip: '', label: '' });
+  const [form, setForm] = useState({ ip: '', label: '' });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const fetchInit = () => {
+    setLoading(true);
+    const api = (url: string) => fetch(url).then(r => r.json());
+    Promise.all([api('/api/admin/attendance/network'), api('/api/admin/attendance/settings')])
+      .then(([p, s]) => { if (p.success) setPolicies(p.data); if (s.success) setSettings(s.settings); })
+      .finally(() => setLoading(false));
+  };
+  useEffect(fetchInit, []);
 
-  const fetchData = async () => {
-    try {
-      const [pRes, sRes] = await Promise.all([
-        fetch('/api/admin/attendance/network'),
-        fetch('/api/admin/attendance/settings')
-      ]);
-      const pData = await pRes.json();
-      const sData = await sRes.json();
-      
-      if (pData.success) setPolicies(pData.data);
-      if (sData.success) setSettings(sData.settings);
-    } catch (err) {
-      console.error('Failed to fetch data');
-    } finally {
-      setLoading(false);
-    }
+  const toggle = async () => {
+    const val = !settings.enable_ip_validation;
+    const res = await fetch('/api/admin/attendance/settings', { method: 'PATCH', body: JSON.stringify({ enable_ip_validation: val }) });
+    if (res.ok) setSettings({ ...settings, enable_ip_validation: val });
   };
 
-  const toggleValidation = async () => {
-    setSaving(true);
-    try {
-      const newValue = !settings.enable_ip_validation;
-      const res = await fetch('/api/admin/attendance/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enable_ip_validation: newValue })
-      });
-      if (res.ok) setSettings({ ...settings, enable_ip_validation: newValue });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addPolicy = async (e: React.FormEvent) => {
+  const add = async (e: any) => {
     e.preventDefault();
-    if (!newPolicy.ip) return;
-    
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/attendance/network', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ip_address_or_range: newPolicy.ip,
-          label: newPolicy.label,
-          is_active: true
-        })
-      });
-      if (res.ok) {
-        setNewPolicy({ ip: '', label: '' });
-        fetchData();
-      }
-    } finally {
-      setSaving(false);
-    }
+    const res = await fetch('/api/admin/attendance/network', { method: 'POST', body: JSON.stringify({ ip_address_or_range: form.ip, label: form.label, is_active: true }) });
+    if (res.ok) { setForm({ ip: '', label: '' }); fetchInit(); }
   };
 
-  const deletePolicy = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this policy?')) return;
-    try {
-      await fetch(`/api/admin/attendance/network/${id}`, { method: 'DELETE' });
-      setPolicies(policies.filter(p => p.id !== id));
-    } catch (err) {
-      console.error('Delete failed');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center p-24"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="max-w-auto space-y-8 animate-fade-in">
+      <header className="flex justify-between items-center pb-6 border-b border-border">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-primary-400" />
-            Network Security Policies
-          </h1>
-          <p className="text-white/50 mt-1">Restrict attendance marking to approved network locations.</p>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Shield className="text-primary" /> Network Security</h1>
+          <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-2 leading-none">Access Restriction Protocols</p>
         </div>
-
-        <div className="flex items-center gap-4 glass p-2 rounded-2xl border border-white/10">
-          <span className="text-sm font-medium text-white/70 px-2">IP Validation</span>
-          <button
-            onClick={toggleValidation}
-            disabled={saving}
-            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none 
-              ${settings.enable_ip_validation ? 'bg-primary-500' : 'bg-white/10'}`}
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform
-                ${settings.enable_ip_validation ? 'translate-x-6' : 'translate-x-1'}`}
-            />
-          </button>
-        </div>
+        <button onClick={toggle} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${settings.enable_ip_validation ? 'bg-primary text-primary-foreground shadow-soft shadow-primary/20' : 'bg-muted text-muted-foreground border border-border'}`}>
+          IP Validation: {settings.enable_ip_validation ? 'Active' : 'Disabled'}
+        </button>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Policy List */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="glass rounded-3xl border border-white/10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-              <h2 className="font-semibold text-white">Active Policies</h2>
-              <span className="text-xs text-primary-400 font-medium px-2 py-1 bg-primary-500/10 rounded-lg">
-                {policies.length} Total
-              </span>
-            </div>
-            
-            <div className="divide-y divide-white/5">
-              {policies.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <Globe className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                  <p className="text-white/30 italic">No network policies defined. Any IP can mark attendance if validation is disabled.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-3">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-soft divide-y divide-border">
+            {policies.length ? policies.map(p => (
+              <div key={p.id} className="p-6 flex justify-between items-center hover:bg-muted/30 group">
+                <div className="flex gap-4 items-center">
+                  <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-primary border border-border shadow-inner"><Shield size={18} /></div>
+                  <div><p className="font-mono text-foreground text-sm font-black">{p.ip_address_or_range}</p><p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">{p.label || 'Default Subnet'}</p></div>
                 </div>
-              ) : (
-                policies.map((policy) => (
-                  <div key={policy.id} className="px-6 py-4 flex items-center justify-between group hover:bg-white/5 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0
-                        ${policy.is_active ? 'bg-success-500/10 text-success-400' : 'bg-white/5 text-white/20'}`}
-                      >
-                        <Shield className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-mono text-white/90">{policy.ip_address_or_range}</p>
-                        <p className="text-xs text-white/40">{policy.label || 'University Subnet'}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {policy.is_active ? (
-                        <CheckCircle2 className="w-4 h-4 text-success-500" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-white/20" />
-                      )}
-                      <button 
-                        onClick={() => deletePolicy(policy.id)}
-                        className="p-2 text-white/30 hover:text-danger-500 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                <button onClick={() => fetch(`/api/admin/attendance/network/${p.id}`, { method: 'DELETE' }).then(fetchInit)} className="text-muted-foreground hover:text-danger opacity-0 group-hover:opacity-100 p-2 transition-all"><Trash2 size={16} /></button>
+              </div>
+            )) : (
+              <div className="p-16 flex flex-col items-center justify-center text-center">
+                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4 text-muted-foreground/30"><Globe size={32} /></div>
+                 <p className="text-sm font-black text-muted-foreground uppercase tracking-widest">Open Network Configuration</p>
+                 <p className="text-xs text-muted-foreground/60 mt-2 font-medium">All IP ranges currently permitted. Onboard a policy to restrict access.</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Add Policy Form */}
-        <div className="space-y-4">
-          <div className="glass rounded-3xl border border-white/10 p-6">
-            <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-primary-400" />
-              Add New Rule
-            </h2>
-            <form onSubmit={addPolicy} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-white/40 uppercase mb-2 block tracking-wider">IP or Range (CIDR)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 192.168.1.0/24"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-mono text-sm"
-                  value={newPolicy.ip}
-                  onChange={(e) => setNewPolicy({ ...newPolicy, ip: e.target.value })}
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="text-xs font-semibold text-white/40 uppercase mb-2 block tracking-wider">Location Label</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Main Campus Library"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all text-sm"
-                  value={newPolicy.label}
-                  onChange={(e) => setNewPolicy({ ...newPolicy, label: e.target.value })}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full gradient-primary text-white font-bold py-3 rounded-2xl shadow-lg shadow-primary-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Add Policy
-              </button>
-            </form>
-            
-            <div className="mt-6 p-4 rounded-2xl bg-white/5 border border-white/5">
-              <p className="text-[10px] text-white/30 leading-relaxed uppercase tracking-widest font-bold mb-2">Security Note</p>
-              <p className="text-xs text-white/40 leading-relaxed">
-                Rules take effect immediately. Ensure your current network is allowed before enabling validation to avoid locking yourself out.
-              </p>
+        <div className="bg-card border border-border rounded-2xl p-6 h-fit space-y-6 shadow-soft">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border pb-4">New Access Rule</h3>
+          <form onSubmit={add} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal IP / CIDR</label>
+              <input placeholder="192.168.1.0/24" required value={form.ip} onChange={e => setForm({ ...form, ip: e.target.value })} className="w-full bg-muted border border-border p-4 rounded-xl text-sm text-foreground focus:border-primary outline-none font-mono transition-all" />
             </div>
-          </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Protocol Identifier</label>
+              <input placeholder="e.g. Campus Wi-Fi" required value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} className="w-full bg-muted border border-border p-4 rounded-xl text-sm text-foreground focus:border-primary outline-none transition-all" />
+            </div>
+            <button type="submit" className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-black text-xs uppercase tracking-widest flex justify-center items-center gap-2 hover:bg-primary/90 shadow-soft shadow-primary/20 transition-all"><Plus size={16} /> Deploy Policy</button>
+          </form>
+          <div className="bg-primary/5 border border-primary/10 rounded-2xl p-5"><p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Subnet Guard</p><p className="text-[10px] text-muted-foreground leading-relaxed font-bold">Policy changes are propagated immediately across the entire university network node.</p></div>
         </div>
       </div>
     </div>

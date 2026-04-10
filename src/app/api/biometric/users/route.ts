@@ -4,12 +4,21 @@ import { ZKService } from '@/lib/biometric/zk-service';
 const deviceIp = process.env.ZKTECO_DEVICE_IP;
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const requestedIp = searchParams.get('ip');
-  const deviceIp = requestedIp || process.env.ZKTECO_DEVICE_IP;
+  try {
+    const { searchParams } = new URL(request.url);
+    const requestedIp = searchParams.get('ip');
+    const deviceIp = requestedIp || process.env.ZKTECO_DEVICE_IP;
 
-  if (!deviceIp) return NextResponse.json({ error: 'Not configured' }, { status: 400 });
-  const zk = new ZKService(deviceIp);
-  const result = await zk.getUsers();
-  return NextResponse.json(result);
+    if (!deviceIp) return NextResponse.json({ success: false, error: 'Not configured' }, { status: 400 });
+    
+    const zk = new ZKService(deviceIp);
+    const result = await zk.getUsers();
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('API Biometric Users Error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Internal Server Error' 
+    }, { status: 500 });
+  }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wallet, Loader2 } from 'lucide-react';
+import { Wallet, Loader2, Edit3, X } from 'lucide-react';
 
 interface SalaryRecord {
   id: string;
@@ -64,60 +64,65 @@ export default function SalaryStructurePage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <Wallet className="w-7 h-7 text-primary-400" /> Salary Structure
-        </h1>
-        <p className="text-white/40 text-sm">{records.length} records found</p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between pb-6 border-b border-border">
+        <div>
+          <h1 className="text-2xl font-black text-foreground flex items-center gap-3 uppercase tracking-tight">
+            <Wallet className="w-7 h-7 text-primary" /> Salary Configuration
+          </h1>
+          <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-2 leading-none">Financial Asset Node Management</p>
+        </div>
+        <div className="px-5 py-2 bg-muted border border-border rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground shadow-soft">
+          {records.length} Active Profiles
+        </div>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-soft">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-white/5 text-left">
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase">Employee ID</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase">Name</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase">Month</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase text-right">Basic</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase text-right">HRA</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase text-right">Gross</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase text-right">Deductions</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase text-right">Net</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase">Status</th>
-                  <th className="py-3 px-4 text-xs font-medium text-white/40 uppercase text-right">Action</th>
+                <tr className="bg-muted border-b border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <th className="py-4 px-6">ID</th>
+                  <th className="py-4 px-6">Personnel</th>
+                  <th className="py-4 px-6">Cycle</th>
+                  <th className="py-4 px-6 text-right">Basic</th>
+                  <th className="py-4 px-6 text-right">HRA</th>
+                  <th className="py-4 px-6 text-right">Gross</th>
+                  <th className="py-4 px-6 text-right">Deductions</th>
+                  <th className="py-4 px-6 text-right">Net Liquidity</th>
+                  <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6 text-right">Protocol</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border text-foreground">
                 {records.map((rec) => (
-                  <tr key={rec.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-4 text-sm text-primary-400 font-mono">{rec.employeeId}</td>
-                    <td className="py-3 px-4 text-sm text-white/80 font-medium">{rec.name}</td>
-                    <td className="py-3 px-4 text-sm text-white/50">{rec.month}</td>
-                    <td className="py-3 px-4 text-sm text-white/60 text-right">₹{rec.basicSalary.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-white/60 text-right">₹{rec.hra.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-white/80 font-bold text-right">₹{rec.grossSalary.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-danger-400 text-right">₹{rec.deductions.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-success-400 font-bold text-right">₹{rec.netSalary.toLocaleString()}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        rec.status === 'processed' ? 'bg-success-500/10 text-success-400' : 'bg-white/5 text-white/60'
+                  <tr key={rec.id} className="hover:bg-muted/30 transition-colors group">
+                    <td className="py-4 px-6 text-xs text-primary font-mono font-bold">{rec.employeeId}</td>
+                    <td className="py-4 px-6 text-sm font-black uppercase tracking-tight">{rec.name}</td>
+                    <td className="py-4 px-6 text-xs text-muted-foreground font-bold">{rec.month}</td>
+                    <td className="py-4 px-6 text-sm text-right font-medium">₹{rec.basicSalary.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm text-right font-medium">₹{rec.hra.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm text-right font-black">₹{rec.grossSalary.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm text-right font-bold text-danger">₹{rec.deductions.toLocaleString()}</td>
+                    <td className="py-4 px-6 text-sm text-right font-black text-emerald-600">₹{rec.netSalary.toLocaleString()}</td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                        rec.status === 'processed' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'
                       }`}>
                         {rec.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-4 px-6 text-right">
                       <button 
                         onClick={() => setEditingRecord(rec)}
-                        className="text-primary-400 hover:text-primary-300 transition-colors text-xs font-medium"
+                        className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
                       >
-                        Edit
+                        <Edit3 className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -129,64 +134,65 @@ export default function SalaryStructurePage() {
       </div>
 
       {editingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="glass-card rounded-2xl p-6 w-full max-w-sm animate-fade-in shadow-2xl">
-            <h2 className="text-xl font-bold text-white mb-2">Edit Salary</h2>
-            <p className="text-white/40 text-sm mb-6">{editingRecord.name} ({editingRecord.employeeId})</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-sm animate-slide-up shadow-2xl relative">
+            <button onClick={() => setEditingRecord(null)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground p-1 transition-colors"><X className="w-5 h-5" /></button>
+            <h2 className="text-xl font-black text-foreground uppercase tracking-tight mb-1">Override Parameters</h2>
+            <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-8">{editingRecord.name} • {editingRecord.employeeId}</p>
             
-            <form onSubmit={handleUpdate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Basic Salary</label>
+            <form onSubmit={handleUpdate} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Basic Allocation</label>
                 <input
                   type="number" required
                   value={editingRecord.basicSalary}
                   onChange={e => setEditingRecord({...editingRecord, basicSalary: parseFloat(e.target.value) || 0})}
-                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-primary-500 outline-none"
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">HRA</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Housing Allowance (HRA)</label>
                 <input
                   type="number" required
                   value={editingRecord.hra}
                   onChange={e => setEditingRecord({...editingRecord, hra: parseFloat(e.target.value) || 0})}
-                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-primary-500 outline-none"
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Allowances</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Variable Allowances</label>
                 <input
                   type="number" required
                   value={editingRecord.allowances}
                   onChange={e => setEditingRecord({...editingRecord, allowances: parseFloat(e.target.value) || 0})}
-                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-primary-500 outline-none"
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Deductions</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Mandatory Deductions</label>
                 <input
                   type="number" required
                   value={editingRecord.deductions}
                   onChange={e => setEditingRecord({...editingRecord, deductions: parseFloat(e.target.value) || 0})}
-                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-primary-500 outline-none text-danger-400"
+                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-danger text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-4 pt-6">
                 <button 
                   type="button" 
                   onClick={() => setEditingRecord(null)}
-                  className="flex-1 py-2 rounded-xl text-white/60 hover:bg-white/5 transition-all text-sm border border-white/10"
+                  className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted border border-border transition-all"
                 >
-                  Cancel
+                  Suspend
                 </button>
                 <button 
                   type="submit" 
                   disabled={saving}
-                  className="flex-1 py-2 gradient-primary rounded-xl text-white text-sm font-medium shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {saving ? 'Saving...' : 'Update'}
+                  {saving ? 'Processing...' : 'Deploy Update'}
                 </button>
               </div>
             </form>

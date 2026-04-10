@@ -1,142 +1,72 @@
 import ZKLib from 'node-zklib';
-import { query } from '@/lib/db/postgres';
+import { batchInsertLogs, processAttendance } from '../attendance/engine';
 
 export class ZKService {
+  private zkInstance: any;
   private ip: string;
   private port: number;
-  private zkInstance: any;
+  private timeout: number;
 
-  constructor(ip: string, port: number = 4370) {
+  constructor(ip: string, port: number = 4370, timeout: number = 10000) {
     this.ip = ip;
     this.port = port;
-    this.zkInstance = new ZKLib(this.ip, this.port, 10000, 4000);
+    this.timeout = timeout;
+    this.zkInstance = new ZKLib(this.ip, this.port, this.timeout, 4000);
   }
 
-  async syncLogs(tenantId: string) {
+  /**
+   * HIGH-LEVEL SYNC ORCHESTRATION: "BORINGLY SIMPLE"
+   * Connects, fetches, saves, processes.
+   */
+  async sync(tenantId: string, deviceId: string = 'IP-DEVICE') {
+    let connected = false;
     try {
-      console.log(`🔌 Connecting to Biometric Device at ${this.ip}:${this.port}...`);
-      await this.zkInstance.createSocket();
-      
-    const logs = await this.zkInstance.getAttendances();
-    console.log(`📥 Retrieved ${logs.data?.length || 0} logs from device.`);
-
-    if (!logs.data || logs.data.length === 0) {
-      return { success: true, count: 0 };
-    }
-
-    // Bulk insert optimization: Use a single query for all logs
-    // We use a temporary table to handle the "WHERE NOT EXISTS" check efficiently for large datasets
-    try {
-      await query('CREATE TEMP TABLE temp_biometric_logs (device_user_id VARCHAR(100), timestamp TIMESTAMP, raw_data TEXT, device_id VARCHAR(100), tenant_id VARCHAR(100), status INTEGER)');
-      
-      const values: any[] = [];
-      const valuePlaceholders: string[] = [];
-      let paramIndex = 1;
-
-      for (const log of logs.data) {
-        // ZKTeco devices return different field names depending on firmware/version
-        const deviceUserId = (log.deviceUserId || log.userSn || log.uid || '').toString();
-        const recordTime = log.recordTime || log.timestamp;
-        const recordStatus = log.recordStatus !== undefined ? log.recordStatus : (log.status || 0);
-
-        if (!deviceUserId) {
-          console.warn('⚠️ Skipping log entry with missing deviceUserId:', log);
-          continue;
-        }
-
-        valuePlaceholders.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
-        values.push(
-          deviceUserId,
-          recordTime ? new Date(recordTime) : new Date(),
-          JSON.stringify(log),
-          'IP-DEVICE',
-          tenantId,
-          Number(recordStatus)
-        );
-        
-        // Batch size limit to avoid too many parameters in a single query
-        if (valuePlaceholders.length >= 1000) {
-          await query(`INSERT INTO temp_biometric_logs (device_user_id, timestamp, raw_data, device_id, tenant_id, status) VALUES ${valuePlaceholders.join(',')}`, values);
-          valuePlaceholders.length = 0;
-          values.length = 0;
-          paramIndex = 1;
-        }
+      // 1. Connection with 1 retry
+      try {
+        await this.zkInstance.createSocket();
+        connected = true;
+      } catch (err) {
+        console.warn(`[ZK] Sync retry for ${this.ip}...`);
+        await new Promise(res => setTimeout(res, 2000));
+        await this.zkInstance.createSocket();
+        connected = true;
       }
 
-      if (valuePlaceholders.length > 0) {
-        await query(`INSERT INTO temp_biometric_logs (device_user_id, timestamp, raw_data, device_id, tenant_id, status) VALUES ${valuePlaceholders.join(',')}`, values);
-      }
+      // 2. Data Transfer
+      console.log(`[ZK] Syncing logs from ${this.ip}...`);
+      const logs = await this.zkInstance.getAttendances();
+      const logsData = logs.data || [];
 
-      // Move from temp to main table where not exists
-      const result = await query(`
-        INSERT INTO biometric_logs (device_user_id, timestamp, raw_data, device_id, tenant_id, status, processed)
-        SELECT t.device_user_id, t.timestamp, t.raw_data, t.device_id, t.tenant_id, t.status, false
-        FROM temp_biometric_logs t
-        WHERE NOT EXISTS (
-          SELECT 1 FROM biometric_logs b 
-          WHERE b.device_user_id = t.device_user_id AND b.timestamp = t.timestamp AND b.tenant_id = t.tenant_id
-        )
-        RETURNING id
-      `);
-
-      return { success: true, count: result.rows.length, total: logs.data.length };
-    } finally {
-      await query('DROP TABLE IF EXISTS temp_biometric_logs');
-    }
-  } catch (error) {
-    console.error(`❌ Biometric Sync Error (${this.ip}):`, error);
-    throw error;
-  } finally {
-    try {
-      await this.zkInstance.disconnect();
-    } catch (e) {
-      console.error('Error disconnecting from ZK device:', e);
-    }
-  }
-}
-
-  async getUsers() {
-    try {
-      await this.zkInstance.createSocket();
-      const users = await this.zkInstance.getUsers();
-      return { success: true, users: users.data || [] };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
-    } finally {
-      await this.zkInstance.disconnect();
-    }
-  }
-
-  async setUserStatus(deviceUserId: string, enabled: boolean) {
-    try {
-      await this.zkInstance.createSocket();
-      // Note: Full implementation of CMD_USER_WRQ would go here.
-      // For now, we simulate the command success as node-zklib 1.3.0 lacks a robust direct wrapper.
-      console.log(`📡 Sending User Status Update to Device (${deviceUserId}): ${enabled ? 'Enable' : 'Disable'}`);
+      // 3. Store and Process
+      const count = await batchInsertLogs(logsData, tenantId, deviceId);
       
-      // Update local cache/tracking
-      await query(
-        'UPDATE tenant_users SET is_active = $1 WHERE device_user_id = $2 AND tenant_id = $3',
-        [enabled, deviceUserId, 'default']
-      );
+      const today = new Date().toISOString().split('T')[0];
+      const processing = await processAttendance(tenantId, today);
 
-      return { success: true, message: `User ${deviceUserId} ${enabled ? 'enabled' : 'disabled'} on device.` };
+      return { success: true, count, processing };
+
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+      console.error(`[ZK] Sync failure at ${this.ip}:`, error instanceof Error ? error.message : String(error));
+      throw error;
     } finally {
-      await this.zkInstance.disconnect();
+      if (connected) {
+        try { await this.zkInstance.disconnect(); } catch (e) {}
+      }
     }
   }
 
-  async testConnection() {
+  /**
+   * Raw log fetch (optional low-level call)
+   */
+  async fetchLogs() {
+    let connected = false;
     try {
       await this.zkInstance.createSocket();
-      const info = await this.zkInstance.getInfo();
-      return { success: true, info };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+      connected = true;
+      const logs = await this.zkInstance.getAttendances();
+      return logs.data || [];
     } finally {
-      await this.zkInstance.disconnect();
+      if (connected) try { await this.zkInstance.disconnect(); } catch (e) {}
     }
   }
 }

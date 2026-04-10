@@ -12,6 +12,7 @@ export interface Subject {
   id: string;
   name: string;
   course_id: string;
+  group_id?: string;
   hours_per_week: number;
   faculty_id?: string;
 }
@@ -45,7 +46,7 @@ export class SchedulingEngine {
     console.log(`🚀 Starting schedule generation for tenant: ${this.tenant_id}, Group: ${groupId || 'ALL'}`);
 
     // 1. Fetch Resources
-    const { rows: classrooms } = await query('SELECT * FROM classrooms WHERE tenant_id = $1', [this.tenant_id]);
+    const { rows: classrooms } = await query('SELECT * FROM classrooms WHERE tenant_id = $1 ORDER BY capacity DESC', [this.tenant_id]);
     const { rows: timeSlots } = await query('SELECT * FROM time_slots WHERE tenant_id = $1 ORDER BY day, start_time', [this.tenant_id]);
     
     // 2. Fetch Subjects to schedule
@@ -64,12 +65,22 @@ export class SchedulingEngine {
     const { rows: subjectsToSchedule } = await query(subjectsQuery, subjectsParams);
 
     // 3. Fetch EXISTING timetable entries for conflict checking
-    // We must respect already scheduled sessions (regardless of group)
-    const { rows: existingEntries } = await query(`
+    // CRITICAL FIX: Exclude the entries for the group we are currently regenerating,
+    // otherwise the group's own old draft will block the new generation.
+    let existingQuery = `
       SELECT t.* 
       FROM timetable t 
+      LEFT JOIN subjects s ON t.subject_id = s.id
       WHERE t.tenant_id = $1
-    `, [this.tenant_id]);
+    `;
+    const existingParams: any[] = [this.tenant_id];
+    
+    if (groupId) {
+      existingQuery += ` AND (s.group_id IS NULL OR s.group_id != $2)`;
+      existingParams.push(groupId);
+    }
+
+    const { rows: existingEntries } = await query(existingQuery, existingParams);
 
     const timetable: TimetableEntry[] = [];
     const unscheduled: any[] = [];
@@ -86,19 +97,19 @@ export class SchedulingEngine {
     };
 
     for (const entry of existingEntries) {
-      getBusySet(teacherBusy, entry.faculty_id).add(entry.time_slot_id);
-      getBusySet(roomBusy, entry.classroom_id).add(entry.time_slot_id);
-      getBusySet(courseBusy, entry.course_id).add(entry.time_slot_id);
+      if (entry.faculty_id) getBusySet(teacherBusy, entry.faculty_id).add(entry.time_slot_id);
+      if (entry.classroom_id) getBusySet(roomBusy, entry.classroom_id).add(entry.time_slot_id);
+      if (entry.course_id) getBusySet(courseBusy, entry.course_id).add(entry.time_slot_id);
     }
 
     // 4. Main Scheduling Loop
     for (const subject of subjectsToSchedule) {
       if (!subject.faculty_id) {
-        unscheduled.push({ subject: subject.name, reason: 'No faculty assigned' });
+        unscheduled.push({ subject: subject.name, reason: 'No faculty assigned to this subject' });
         continue;
       }
 
-      let hoursNeeded = subject.hours_per_week;
+      let hoursNeeded = subject.hours_per_week || 3;
       let assignedInSubject = 0;
 
       // Try assigning slots
@@ -147,7 +158,7 @@ export class SchedulingEngine {
         unscheduled.push({ 
           subject: subject.name, 
           course: subject.course_name, 
-          reason: `Insufficient slots (Assigned ${assignedInSubject}/${hoursNeeded})` 
+          reason: `Insufficient slots (Assigned ${assignedInSubject}/${hoursNeeded}). Conflicts detected.` 
         });
       }
     }
@@ -159,7 +170,6 @@ export class SchedulingEngine {
    * Saves the generated timetable as "draft".
    */
   async saveDraft(entries: TimetableEntry[], userId: string, groupId?: string) {
-    // If groupId is provided, we only replace entries for that group's subjects
     if (groupId) {
        await query(`
          DELETE FROM timetable 
@@ -170,6 +180,7 @@ export class SchedulingEngine {
        await query('DELETE FROM timetable WHERE tenant_id = $1 AND status = $2', [this.tenant_id, 'draft']);
     }
 
+    // Prepare insert promises
     for (const entry of entries) {
       await query(`
         INSERT INTO timetable 
@@ -183,11 +194,15 @@ export class SchedulingEngine {
     }
   }
 
-  async publish(courseId?: string) {
-    const q = courseId 
-      ? 'UPDATE timetable SET status = $1 WHERE tenant_id = $2 AND course_id = $3'
-      : 'UPDATE timetable SET status = $1 WHERE tenant_id = $2';
-    const params = courseId ? ['published', this.tenant_id, courseId] : ['published', this.tenant_id];
-    await query(q, params);
+  async publish(groupId?: string) {
+    if (groupId) {
+       await query(`
+         UPDATE timetable SET status = $1 
+         WHERE tenant_id = $2
+         AND subject_id IN (SELECT id FROM subjects WHERE group_id = $3)
+       `, ['published', this.tenant_id, groupId]);
+    } else {
+       await query('UPDATE timetable SET status = $1 WHERE tenant_id = $2', ['published', this.tenant_id]);
+    }
   }
 }

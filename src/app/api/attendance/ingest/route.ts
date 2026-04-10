@@ -43,13 +43,14 @@ export async function POST(request: Request) {
 
     // 2. Validate Employee Existence
     const empResult = await query(
-      'SELECT id FROM employees WHERE university_id = $1 AND tenant_id = $2',
+      "SELECT id, first_name || ' ' || last_name as name FROM employees WHERE university_id = $1 AND tenant_id = $2",
       [employeeId, tenantId]
     );
     if (empResult.rowCount === 0) {
       return NextResponse.json({ error: 'Employee not found in this tenant' }, { status: 404 });
     }
     const internalEmployeeId = empResult.rows[0].id;
+    const employeeName = empResult.rows[0].name;
 
     // 3. Duplicate Prevention (e.g., within 5 minutes)
     const today = new Date().toISOString().split('T')[0];
@@ -79,9 +80,12 @@ export async function POST(request: Request) {
         [internalEmployeeId, tenantId, today, sourceType]
       );
     } else {
-      // Update existing record (Check-out)
+      // Update existing record (Check-out) and calculate hours
       result = await query(
-        `UPDATE attendance SET check_out = NOW(), updated_at = NOW()
+        `UPDATE attendance 
+         SET check_out = NOW(), 
+             working_hours = ROUND(CAST(EXTRACT(EPOCH FROM (NOW() - check_in)) / 3600 AS NUMERIC), 2),
+             updated_at = NOW()
          WHERE employee_id = $1 AND tenant_id = $2 AND date = $3
          RETURNING *`,
         [internalEmployeeId, tenantId, today]
@@ -94,6 +98,7 @@ export async function POST(request: Request) {
       attendanceEvents.emit('attendance_event', {
         type: existingResult.rowCount === 0 ? 'check_in' : 'check_out',
         employeeId,
+        employeeName,
         tenantId,
         timestamp: new Date().toISOString(),
         data: result.rows[0]

@@ -1,126 +1,44 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db/postgres';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
+import { processAttendance } from '@/lib/attendance/engine';
 
-// Process unprocessed biometric logs into attendance records
+/**
+ * MANUAL TRIGGER: Process attendance for a tenant
+ * Requirements: Auth-token cookie must be present and valid
+ */
 export async function POST(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
-    const result = await processAttendance(tenantId);
+    // 1. Authentication Check
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const payload = await verifyToken(token);
+    if (!payload?.tenantId) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+    const tenantId = payload.tenantId;
+    const today = new Date().toISOString().split('T')[0];
+
+    // 2. Direct Engine Call (No internal API fetch)
+    const result = await processAttendance(tenantId, today);
+
+    // 3. Clean Simplified Response
     return NextResponse.json({
       success: true,
-      message: `Processed ${result.processed} logs, created/updated ${result.records} attendance records`,
-      ...result,
+      processed: result.processed,
+      records: result.records,
+      message: `Successfully processed ${result.records} attendance records.`
     });
+
   } catch (error) {
-    console.error('Attendance processing error:', error);
-    return NextResponse.json({ error: 'Failed to process attendance' }, { status: 500 });
+    console.error('[API] Attendance processing failure:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function processAttendance(tenantId: string) {
-  const logResult = await query(
-    `SELECT * FROM biometric_logs WHERE tenant_id = $1 AND processed = false ORDER BY timestamp ASC`,
-    [tenantId]
-  );
-  const unprocessedLogs = logResult.rows;
-
-  if (unprocessedLogs.length === 0) {
-    return { processed: 0, records: 0 };
-  }
-
-  // Group logs by device_user_id and date
-  const grouped: Record<string, any[]> = {};
-  for (const log of unprocessedLogs) {
-    const dateKey = `${log.device_user_id}_${new Date(log.timestamp).toISOString().split('T')[0]}`;
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push(log);
-  }
-
-  let recordCount = 0;
-
-  for (const [key, logs] of Object.entries(grouped)) {
-    const [deviceUserId, dateStr] = key.split('_');
-    const date = dateStr;
-
-    // Find employee by device_user_id from PostgreSQL via tenant_users mapping
-    const empResult = await query(
-      `SELECT e.id as employee_id 
-       FROM employees e
-       JOIN tenant_users tu ON e.user_id = tu.user_id
-       WHERE e.tenant_id = $1 AND tu.device_user_id = $2 AND tu.is_active = true
-       LIMIT 1`,
-      [tenantId, deviceUserId]
-    );
-    const employee = empResult.rows[0];
-
-    if (!employee) {
-      // Mark logs as processed even if no employee mapping found
-      const logIds = logs.map(l => l.id);
-      await query('UPDATE biometric_logs SET processed = true WHERE id = ANY($1)', [logIds]);
-      continue;
-    }
-
-    // Sort logs by timestamp
-    const sortedLogs = logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    // Mapping status from logs: 0 = IN, 1 = OUT (common in ZK devices)
-    const inPunch = sortedLogs.find(l => Number(l.status) === 0) || sortedLogs[0];
-    const outPunch = sortedLogs.length > 1 ? (sortedLogs.findLast?.(l => Number(l.status) === 1) || sortedLogs[sortedLogs.length - 1]) : null;
-
-    const firstPunch = new Date(inPunch.timestamp);
-    const lastPunch = outPunch ? new Date(outPunch.timestamp) : null;
-
-    // Determine status
-    const workStartHour = 9; // 9 AM
-    let status: 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT' = 'PRESENT';
-
-    if (firstPunch.getHours() > workStartHour || 
-        (firstPunch.getHours() === workStartHour && firstPunch.getMinutes() > 15)) {
-      status = 'LATE';
-    }
-
-    // Calculate working hours
-    let workingHours = 0;
-    if (lastPunch) {
-      workingHours = (lastPunch.getTime() - firstPunch.getTime()) / (1000 * 60 * 60);
-      if (workingHours < 4) {
-        status = 'HALF_DAY';
-      }
-    } else {
-      // Only one punch - mark as half-day
-      status = 'HALF_DAY';
-    }
-
-    const overtime = Math.max(0, workingHours - 8);
-
-    // Upsert attendance record in PostgreSQL
-    await query(
-      `INSERT INTO attendance (
-        employee_id, tenant_id, date, check_in, check_out, status, working_hours, overtime, source
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (tenant_id, employee_id, date) DO UPDATE SET
-        check_in = COALESCE(attendance.check_in, EXCLUDED.check_in),
-        check_out = EXCLUDED.check_out,
-        status = EXCLUDED.status,
-        working_hours = EXCLUDED.working_hours,
-        overtime = EXCLUDED.overtime,
-        source = 'biometric',
-        updated_at = NOW()`,
-      [
-        employee.employee_id, tenantId, date, 
-        firstPunch, lastPunch, status, 
-        Math.round(workingHours * 100) / 100, 
-        Math.round(overtime * 100) / 100, 
-        'biometric'
-      ]
-    );
-
-    recordCount++;
-
-    // Mark logs as processed
-    const logIds = logs.map(l => l.id);
-    await query('UPDATE biometric_logs SET processed = true WHERE id = ANY($1)', [logIds]);
-  }
-
-  return { processed: unprocessedLogs.length, records: recordCount };
-}
+/**
+ * Re-export for internal usage (workers, cron, etc)
+ * Allows systems to bypass HTTP/Auth requirements
+ */
+export { processAttendance };

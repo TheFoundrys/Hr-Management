@@ -1,295 +1,131 @@
 'use client';
-
-import { useEffect, useState } from 'react';
-import { Users, Loader2, Search, Plus, Filter, UserPlus, Shield, Building2 } from 'lucide-react';
-import { useAuthStore } from '@/lib/stores/authStore';
-
-interface Employee {
-  id: string;
-  university_id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-  department_name: string;
-  designation_name: string;
-  reporting_name: string;
-}
-
-interface Department {
-  id: string;
-  name: string;
-}
-
-const PREDEFINED_DEPARTMENTS = [
-  'School of Computer Science',
-  'Department of Mathematics',
-  'Faculty of Physics',
-  'School of Business & Economics',
-  'Department of Humanities',
-  'School of Engineering',
-  'Faculty of Law',
-  'Administration & Registry'
-];
+import { useEffect, useState, useMemo } from 'react';
+import { Users, Loader2, Search, UserPlus, Settings } from 'lucide-react';
 
 export default function EmployeesPage() {
-  const { user } = useAuthStore();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [allManagers, setAllManagers] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ employeeId: '', name: '', email: '', role: 'FACULTY', departmentId: '', reportsToId: '', salary: { basic: 0, hra: 0, allowances: 0, deductions: 0 } });
 
-  const [form, setForm] = useState({
-    employeeId: '',
-    name: '',
-    email: '',
-    role: 'FACULTY',
-    departmentId: '',
-    reportsToId: '',
-    salary: { basic: 0, hra: 0, allowances: 0, deductions: 0 }
-  });
-
-  const fetchInitialData = async () => {
-    setLoading(true);
+  const fetchInit = async () => {
     try {
-      const [empRes, deptRes] = await Promise.all([
-        fetch('/api/employees'),
-        fetch('/api/admin/scheduling/departments')
-      ]);
-      const empData = await empRes.json();
-      const deptData = await deptRes.json();
-
-      if (empData.success) {
-        setEmployees(empData.employees);
-        setAllManagers(empData.employees); 
-      }
-      
-      // Merge backend departments with predefined ones to ensure list is never empty
-      let deptList = deptData.success ? deptData.departments : [];
-      const existingNames = new Set(deptList.map((d: any) => d.name));
-      
-      PREDEFINED_DEPARTMENTS.forEach(name => {
-        if (!existingNames.has(name)) {
-          deptList.push({ id: `pre-${name}`, name });
-        }
-      });
-      
-      setDepartments(deptList);
-    } catch (err) {
-      console.error(err);
-      // Fallback if API fails
-      setDepartments(PREDEFINED_DEPARTMENTS.map(name => ({ id: `pre-${name}`, name })));
+      const [empRes, deptRes] = await Promise.all([fetch('/api/employees'), fetch('/api/admin/scheduling/departments')]);
+      const [empData, deptData] = await Promise.all([empRes.json(), deptRes.json()]);
+      if (empData.success) setEmployees(empData.employees);
+      if (deptData.success) setDepartments(deptData.departments);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
+  useEffect(() => { fetchInit(); }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch('/api/employees', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowModal(false);
-        setForm({
-          employeeId: '', name: '', email: '', role: 'FACULTY', 
-          departmentId: '', reportsToId: '', 
-          salary: { basic: 0, hra: 0, allowances: 0, deductions: 0 }
-        });
-        fetchInitialData();
-      } else {
-        alert(data.error || 'Failed to save employee');
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
+    const res = await fetch('/api/employees', { method: 'POST', body: JSON.stringify(form) });
+    if ((await res.json()).success) { setShowModal(false); fetchInit(); }
   };
 
-  const filteredEmployees = employees.filter(emp => 
-    `${emp.first_name} ${emp.last_name} ${emp.university_id} ${emp.email}`
-    .toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    return employees.filter(e => 
+      (e.first_name + ' ' + e.last_name).toLowerCase().includes(s) || 
+      e.email.toLowerCase().includes(s) || 
+      e.university_id.toLowerCase().includes(s) ||
+      e.department_name?.toLowerCase().includes(s)
+    );
+  }, [employees, search]);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary-400" />
-            Employees
-          </h1>
-          <p className="text-white/50 mt-1">Manage institutional workforce and reporting structures.</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-primary-400 transition-colors" />
-            <input 
-              type="text"
-              placeholder="Search directory..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-white w-full md:w-64 focus:border-primary-500/50 outline-none transition-all placeholder:text-white/20"
-            />
+    <div className="max-w-auto space-y-6 animate-fade-in">
+      <header className="flex justify-between items-center pb-6 border-b border-border">
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Users className="text-primary" /> Directory</h1>
+        <div className="flex gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input type="text" placeholder="Search..." onChange={e => setSearch(e.target.value)} className="bg-card border border-border rounded-xl pl-10 pr-4 py-2 text-sm text-foreground focus:border-primary outline-none transition-all shadow-soft" />
           </div>
-          
-          <button 
-            onClick={() => setShowModal(true)}
-            className="gradient-primary px-6 py-3 rounded-2xl text-white text-sm font-bold shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-all flex items-center gap-2 active:scale-95"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Employee
-          </button>
+          <button onClick={() => setShowModal(true)} className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-black uppercase tracking-widest flex items-center gap-2 hover:bg-primary/90 transition-all shadow-soft"><UserPlus size={16} /> Add Employee</button>
         </div>
-      </div>
+      </header>
 
-      <div className="glass rounded-[32px] overflow-hidden border border-white/5 shadow-2xl">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
-            <p className="text-white/30 text-sm font-medium animate-pulse">Loading directory...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-white/5 text-left border-b border-white/5">
-                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Identification</th>
-                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Full Name</th>
-                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Role & Security</th>
-                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Department</th>
-                  <th className="py-5 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Reporting To</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} className="group hover:bg-white/[0.03] transition-colors relative">
-                    <td className="py-5 px-6">
-                      <span className="text-sm font-mono text-primary-400/80 bg-primary-400/5 px-2 py-1 rounded-lg border border-primary-400/10">
-                        {emp.university_id}
-                      </span>
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-white group-hover:text-primary-400 transition-colors">
-                          {emp.first_name} {emp.last_name}
-                        </span>
-                        <span className="text-[11px] text-white/30 group-hover:text-white/50 transition-colors">
-                          {emp.email}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-2">
-                         <Shield className={`w-3 h-3 ${emp.role === 'ADMIN' ? 'text-primary-400' : 'text-white/20'}`} />
-                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider uppercase
-                           ${emp.role === 'ADMIN' ? 'bg-primary-500/20 text-primary-300' : 'bg-white/5 text-white/40'}`}>
-                           {emp.role}
-                         </span>
-                      </div>
-                    </td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-2 text-sm text-white/50">
-                        <Building2 className="w-3.5 h-3.5 text-white/20" />
-                        {emp.department_name}
-                      </div>
-                    </td>
-                    <td className="py-5 px-6 text-sm text-white/30 italic">
-                      {emp.reporting_name || 'No Direct HOD/Dean'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredEmployees.length === 0 && (
-              <div className="py-24 text-center">
-                <Users className="w-12 h-12 text-white/5 mx-auto mb-4" />
-                <p className="text-white/20 font-medium italic">No employees match your search criteria.</p>
+      {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary w-8 h-8" /></div> :
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filtered.map(emp => (
+            <div 
+              key={emp.id} 
+              onClick={() => window.location.href = `/employees/${emp.university_id}`}
+              className="bg-card border border-border p-5 rounded-2xl flex justify-between items-center hover:border-primary transition-all shadow-soft group cursor-pointer active:scale-[0.98]"
+            >
+              <div className="flex gap-4 items-center">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-bold text-lg">{emp.first_name[0]}{emp.last_name[0]}</div>
+                <div>
+                  <h3 className="text-foreground font-black text-sm leading-tight uppercase tracking-tight group-hover:text-primary transition-colors">{emp.first_name} {emp.last_name}</h3>
+                  <p className="text-muted-foreground text-[10px] font-bold mt-1 uppercase tracking-widest leading-none">{emp.department_name} • <span className="text-primary">{emp.email}</span></p>
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <span className="bg-muted text-primary text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-[0.1em] border border-border">{emp.role}</span>
+                  <p className="text-muted-foreground text-[10px] mt-2 font-mono tracking-widest uppercase font-black leading-none">{emp.university_id}</p>
+                </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = `/employees/${emp.university_id}/edit`;
+                  }}
+                  className="p-2 hover:bg-primary hover:text-white rounded-lg transition-all text-muted-foreground opacity-0 group-hover:opacity-100"
+                >
+                  <Settings size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="glass rounded-[32px] p-8 w-full max-w-lg border border-white/10 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Institutional Onboarding</h2>
-                <p className="text-white/40 text-xs mt-1">Register a new employee with reporting hierarchy.</p>
-              </div>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">✕</button>
-            </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card p-10 rounded-3xl w-full max-w-md border border-border shadow-2xl">
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight mb-8">Onboard Personnel</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Employee ID</label>
-                  <input type="text" required value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all" placeholder="TFU-00001" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Academic Role</label>
-                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value, departmentId: '', reportsToId: ''})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
-                    <option value="FACULTY">Faculty (Teaching)</option>
-                    <option value="HOD">HOD (Head of Dept)</option>
-                    <option value="STAFF">Administrative Staff</option>
-                    <option value="ADMIN">Dean / System Admin</option>
-                  </select>
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Full Identity Name</label>
-                <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all" placeholder="Enter full legal name" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal ID</label>
+                <input placeholder="ID (TFU-xxx)" required onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full bg-muted border border-border px-5 py-4 rounded-xl text-foreground text-sm focus:border-primary outline-none transition-all" />
               </div>
-
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Corporate Email Address</label>
-                <input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all" placeholder="username@university.edu" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Personnel Name</label>
+                <input placeholder="Full Name" required onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-muted border border-border px-5 py-4 rounded-xl text-foreground text-sm focus:border-primary outline-none transition-all" />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">Department</label>
-                  <select required value={form.departmentId} onChange={e => setForm({...form, departmentId: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
-                    <option value="">Select Department</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest pl-1">
-                    {form.role === 'HOD' ? 'Reporting Dean' : 'Reporting HOD'}
-                  </label>
-                  <select value={form.reportsToId} onChange={e => setForm({...form, reportsToId: e.target.value})} className="w-full bg-surface-900 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500/50 outline-none transition-all">
-                    <option value="">No Direct Reporting</option>
-                    {allManagers
-                      ?.filter(m => (form.role === 'HOD' ? m.role === 'ADMIN' : m.role === 'HOD'))
-                      .map(m => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
-                  </select>
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Network Contact</label>
+                <input type="email" placeholder="Corporate Email" required onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-muted border border-border px-5 py-4 rounded-xl text-foreground text-sm focus:border-primary outline-none transition-all" />
               </div>
-
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Role</label>
+                <select onChange={e => setForm({ ...form, role: e.target.value })} className="w-full bg-muted border border-border px-5 py-4 rounded-xl text-foreground text-sm focus:border-primary outline-none cursor-pointer">
+                  <option value="FACULTY">Faculty</option>
+                  <option value="HOD">HOD</option>
+                  <option value="STAFF">Staff</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="NON_TEACHING">Non-Teaching</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Department</label>
+                <select onChange={e => setForm({ ...form, departmentId: e.target.value })} className="w-full bg-muted border border-border px-5 py-4 rounded-xl text-foreground text-sm focus:border-primary outline-none cursor-pointer">
+                  <option value="">Assign Department...</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
               <div className="flex gap-4 pt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 rounded-2xl text-sm font-bold text-white/40 hover:bg-white/5 transition-all active:scale-95">Cancel</button>
-                <button type="submit" disabled={saving} className="flex-2 py-4 gradient-primary rounded-2xl text-white text-sm font-bold shadow-lg shadow-primary-500/20 hover:shadow-primary-500/40 transition-all flex items-center justify-center gap-3 active:scale-95">
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                  {saving ? 'Processing...' : 'Confirm Registration'}
-                </button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 bg-muted border border-border hover:bg-muted text-muted-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">Cancel</button>
+                <button type="submit" className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all">Finalize</button>
               </div>
             </form>
           </div>

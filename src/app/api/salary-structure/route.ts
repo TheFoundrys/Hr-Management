@@ -6,28 +6,37 @@ export async function GET(request: Request) {
   try {
     const tenantId = await getTenantId(request);
 
-    // Join with employees to get name and university_id (TFU-XXXXX)
+    // Fetch all employees and join with their latest payslip if it exists for the current month/year
+    // Or just fetch all employees to configure their BASE salaries.
+    // The user wants to see "New Employees" here.
     const result = await query(
-      `SELECT p.*, e.first_name, e.last_name, e.university_id 
-       FROM payslip_records p
-       JOIN employees e ON p.user_id = e.employee_id
-       WHERE p.tenant_id = $1
-       ORDER BY p.year DESC, p.month DESC`,
+      `SELECT 
+        e.university_id, e.employee_id, e.first_name, e.last_name,
+        COALESCE(p.basic_salary, e.salary_basic) as basic_salary,
+        COALESCE(p.hra, e.salary_hra) as hra,
+        COALESCE(p.allowances, e.salary_allowances) as allowances,
+        COALESCE(p.deductions, e.salary_deductions) as deductions,
+        COALESCE(p.net_salary, (e.salary_basic + e.salary_hra + e.salary_allowances - e.salary_deductions)) as net_salary,
+        p.id as payslip_id, p.status, p.month, p.year
+       FROM employees e
+       LEFT JOIN payslip_records p ON e.employee_id = p.user_id AND p.tenant_id = e.tenant_id::text
+       WHERE e.tenant_id::text = $1::text
+       ORDER BY e.university_id ASC`,
       [tenantId]
     );
 
     const records = result.rows.map(row => ({
-      id: row.id,
+      id: row.payslip_id || row.university_id, // Use university_id if no payslip
       employeeId: row.university_id,
       name: `${row.first_name} ${row.last_name}`,
-      month: `${row.year}-${String(row.month).padStart(2, '0')}`,
+      month: row.month ? `${row.year}-${String(row.month).padStart(2, '0')}` : 'Base Package',
       basicSalary: Number(row.basic_salary),
       hra: Number(row.hra),
       allowances: Number(row.allowances),
       grossSalary: Number(row.basic_salary) + Number(row.hra) + Number(row.allowances),
       deductions: Number(row.deductions),
       netSalary: Number(row.net_salary),
-      status: row.status
+      status: row.status || 'Active'
     }));
 
     return NextResponse.json({ success: true, records });
@@ -41,17 +50,31 @@ export async function PUT(request: Request) {
   try {
     const tenantId = await getTenantId(request);
     const body = await request.json();
-    const { id, basicSalary, hra, allowances, deductions } = body;
+    const { id, employeeId, basicSalary, hra, allowances, deductions } = body;
 
     const netSalary = Number(basicSalary) + Number(hra) + Number(allowances) - Number(deductions);
 
-    await query(
-      `UPDATE payslip_records SET
-        basic_salary = $1, hra = $2, allowances = $3, deductions = $4,
-        net_salary = $5, updated_at = NOW()
-       WHERE id = $6 AND tenant_id = $7`,
-      [basicSalary, hra, allowances, deductions, netSalary, id, tenantId]
-    );
+    // If 'id' is a university_id (TFU-xxx), it means we update the BASE salary in 'employees'
+    // If 'id' is a UUID, it's a payslip_id, so we update 'payslip_records'
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
+    if (isUuid) {
+      await query(
+        `UPDATE payslip_records SET
+          basic_salary = $1, hra = $2, allowances = $3, deductions = $4,
+          net_salary = $5, updated_at = NOW()
+         WHERE id = $6 AND tenant_id::text = $7::text`,
+        [basicSalary, hra, allowances, deductions, netSalary, id, tenantId]
+      );
+    } else {
+      await query(
+        `UPDATE employees SET
+          salary_basic = $1, salary_hra = $2, salary_allowances = $3, salary_deductions = $4,
+          updated_at = NOW()
+         WHERE university_id = $5 AND tenant_id::text = $6::text`,
+        [basicSalary, hra, allowances, deductions, id, tenantId]
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

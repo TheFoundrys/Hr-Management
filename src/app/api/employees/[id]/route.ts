@@ -40,6 +40,43 @@ export async function GET(
 
     const employee = result.rows[0];
 
+    // Calculate real-time stats for the current month
+    const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const statsResult = await query(
+      `SELECT 
+        COUNT(*) as total_days,
+        COUNT(CASE WHEN status IN ('PRESENT', 'LATE') THEN 1 END) as present_days,
+        SUM(working_hours) as total_hours
+       FROM attendance 
+       WHERE employee_id = $1 AND date >= $2`,
+      [employee.id, firstOfMonth]
+    );
+
+    const stats = statsResult.rows[0];
+    const presentDays = parseInt(stats.present_days || 0);
+    const totalDays = parseInt(stats.total_days || 0);
+    const totalHours = parseFloat(stats.total_hours || 0);
+
+    // Logic: 8 hours per day expected
+    const expectedHours = totalDays * 8;
+    const efficiency = expectedHours > 0 ? Math.min(100, Math.round((totalHours / expectedHours) * 100)) : 100;
+    const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 100;
+
+    // Calculate dynamic deduction (e.g., LOP for missed hours/days)
+    const basic = Number(employee.salary_basic || 0);
+    const totalGross = basic + Number(employee.salary_hra || 0) + Number(employee.salary_allowances || 0);
+    const perDaySalary = totalGross / 30;
+    const absentDays = totalDays - presentDays;
+    const accruedDeduction = (absentDays * perDaySalary) + Number(employee.salary_deductions || 0);
+
+    // Map and sanitize salary fields
+    const salary = {
+      basic: Number(employee.salary_basic || 0),
+      hra: Number(employee.salary_hra || 0),
+      allowances: Number(employee.salary_allowances || 0),
+      deductions: Math.max(Number(employee.salary_deductions || 0), Math.round(accruedDeduction))
+    };
+
     // Map to camelCase for frontend
     const mappedEmployee = {
       ...employee,
@@ -49,11 +86,11 @@ export async function GET(
       department: employee.department_name,
       designation: employee.designation_name,
       managerName: employee.manager_name,
-      salary: {
-        basic: employee.salary_basic || 0,
-        hra: employee.salary_hra || 0,
-        allowances: employee.salary_allowances || 0,
-        deductions: employee.salary_deductions || 0
+      joinDate: employee.join_date || employee.created_at,
+      salary,
+      metrics: {
+        efficiency,
+        attendance: attendanceRate
       }
     };
 
@@ -74,7 +111,7 @@ export async function PUT(
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || !['ADMIN', 'HR'].includes(payload.role)) {
+    if (!payload || !['ADMIN', 'HR', 'SUPER_ADMIN'].includes(payload.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -84,7 +121,7 @@ export async function PUT(
 
     // Supports finding by UUID OR university_id
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-    
+
     // 1. Get current employee to ensure they exist and belong to the tenant
     const checkRes = await query(
       `SELECT id FROM employees WHERE ${isUuid ? 'id = $1' : 'university_id = $1'} AND tenant_id = $2 LIMIT 1`,

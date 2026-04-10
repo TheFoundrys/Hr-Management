@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { Loader2 } from 'lucide-react';
@@ -9,98 +8,50 @@ import StaffDashboard from './StaffDashboard';
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboard();
+    fetch('/api/dashboard')
+      .then(res => res.json())
+      .then(json => json.success && setData(json.dashboard))
+      .catch(console.error);
 
-    // Real-time updates via SSE
-    const eventSource = new EventSource('/api/attendance/events');
-    
-    eventSource.onmessage = (event) => {
-      const liveData = JSON.parse(event.data);
-      
-      setData((prev: any) => {
-        if (!prev) return prev;
-        
-        // Update stats
-        const newStats = { ...prev.stats };
-        if (liveData.type === 'check_in') {
-           newStats.presentToday = (newStats.presentToday || 0) + 1;
-           newStats.absentToday = (newStats.absentToday || 0) - 1;
-        }
-
-        // Add to live events feed
-        const newLiveEvents = [
-          { employeeId: liveData.employeeId, type: liveData.type, timestamp: liveData.timestamp },
-          ...(prev.liveEvents || [])
-        ].slice(0, 10);
-
-        return {
-          ...prev,
-          stats: newStats,
-          liveEvents: newLiveEvents
-        };
-      });
-      
-      // Flash a notification
-      if (typeof window !== 'undefined') {
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-8 right-8 bg-primary text-secondary px-6 py-3 rounded-xl shadow-2xl z-50 animate-bounce flex items-center gap-3 border border-primary/20 backdrop-blur-md';
-        toast.innerHTML = `<span class="w-2 h-2 bg-secondary rounded-full animate-ping"></span> Live Update: ${liveData.employeeId} checked ${liveData.type.replace('_', ' ')}`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-      }
+    const sse = new EventSource('/api/attendance/events');
+    sse.onmessage = (e) => {
+      const ev = JSON.parse(e.data);
+      setData((prev: any) => prev ? {
+        ...prev,
+        stats: { ...prev.stats, presentToday: prev.stats.presentToday + (ev.type === 'check_in' ? 1 : 0) },
+        liveEvents: [{ employeeId: ev.employeeId, employeeName: ev.employeeName, type: ev.type, timestamp: ev.timestamp }, ...(prev.liveEvents || [])].slice(0, 10)
+      } : prev);
     };
-
-    return () => eventSource.close();
+    return () => sse.close();
   }, [user]);
 
-  const fetchDashboard = async () => {
-    try {
-      const res = await fetch('/api/dashboard');
-      const json = await res.json();
-      if (json.success) {
-        setData({
-          ...json.dashboard,
-          liveEvents: json.dashboard.liveEvents || []
-        });
-      }
-    } catch (err) {
-      console.error('Dashboard fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!data) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <p className="text-muted-foreground text-sm font-medium animate-pulse">Synchronizing Node Data...</p>
+    </div>
+  );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
-
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role?.toLowerCase() || '');
+  const isNonTeaching = user?.role?.toLowerCase() === 'non_teaching';
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b">
+    <div className="space-y-6 animate-fade-in">
+      <header className="flex justify-between items-center pb-6 border-b border-border">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
+          <h1 className="text-3xl font-black text-foreground flex items-center gap-3">
             Welcome, <span className="text-primary">{user?.name?.split(' ')[0]}</span>
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">
-            {isAdmin ? "Institutional performance overview for today" : "Your personal work cycle summary"}
+          <p className="text-muted-foreground mt-1 text-sm font-bold uppercase tracking-widest leading-none">
+            {isAdmin ? "Institutional Performance" : "Personal Work Cycle"}
           </p>
         </div>
-        
-        <div className="flex items-center gap-2 px-6 py-2 bg-muted/50 rounded-lg border text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-          Status: Operational
+        <div className="flex items-center gap-2 px-5 py-2 bg-card border border-border rounded-full text-[10px] font-black tracking-widest uppercase text-foreground shadow-soft">
+          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> Operational
         </div>
       </header>
-
       {isAdmin ? <AdminDashboard data={data} /> : <StaffDashboard data={data} />}
     </div>
   );

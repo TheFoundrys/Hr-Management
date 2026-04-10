@@ -1,233 +1,135 @@
 'use client';
-
-import React, { useState, useEffect } from 'react';
-import { 
-  Calendar, Clock, MapPin, User, BookOpen, 
-  Plus, Loader2, Download, Printer, Filter, ChevronRight,
-  Settings, CheckCircle2, AlertCircle
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, BookOpen, Plus, Loader2, Filter, Settings, ShieldCheck, Activity, Building2, Layers, Trash2, User } from 'lucide-react';
 import { TimetableGrid } from '@/components/scheduling/TimetableGrid';
 
 export default function SchedulingPage() {
+  const [view, setView] = useState<'grid' | 'infra'>('grid');
+  const [subTab, setSubTab] = useState('departments');
+  const [data, setData] = useState<any>({});
+  const [entries, setEntries] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState<any[]>([]);
-  const [groups, setGroups] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [days, setDays] = useState<string[]>(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
-  const [timeSlots, setTimeSlots] = useState<string[]>(['09:00', '10:00', '11:00', '12:00', '14:00', '15:00']);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState<any>({});
+  const [days, setDays] = useState(['Monday','Tuesday','Wednesday','Thursday','Friday']);
+  const [slots, setSlots] = useState(['09:00','10:00','11:00','12:00','14:00','15:00']);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
+  const api = (url: string, m='GET', b?: any) => fetch(url, {method:m, headers:{'Content-Type':'application/json'}, body:b?JSON.stringify(b):null}).then(r=>r.json());
 
-  const fetchInitialData = async () => {
-    try {
-      // 1. Fetch available Slots to dynamically build the grid
-      const sRes = await fetch('/api/admin/scheduling/slots');
-      const sData = await sRes.json();
-      if (sData.success && sData.slots?.length > 0) {
-        const uniqueDays = Array.from(new Set(sData.slots.map((s: any) => s.day_of_week))) as string[];
-        const uniqueTimes = Array.from(new Set(sData.slots.map((s: any) => s.start_time.substring(0, 5)))) as string[];
-        
-        // Sort days logically
-        const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        uniqueDays.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
-        uniqueTimes.sort();
-
-        setDays(uniqueDays);
-        setTimeSlots(uniqueTimes);
-      }
-
-      // 2. Fetch Groups
-      const gRes = await fetch('/api/admin/scheduling/groups');
-      const gData = await gRes.json();
-      if (gData.success) {
-        setGroups(gData.groups);
-        if (gData.groups.length > 0) {
-          setSelectedGroup(gData.groups[0].id);
-          fetchTimetable(gData.groups[0].id);
-        }
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTimetable = async (groupId: string) => {
+  const refreshInfras = () => {
     setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/scheduling/timetable?groupId=${groupId}`);
-      const data = await res.json();
-      if (data.success) setEntries(data.entries);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+    const get = (u:string) => fetch(u).then(r=>r.json());
+    Promise.all([get('/api/admin/scheduling/groups'), get('/api/admin/scheduling/courses'), get('/api/admin/scheduling/slots'), get('/api/admin/scheduling/rooms'), get('/api/admin/scheduling/departments'), get('/api/admin/scheduling/subjects')])
+      .then(([g, c, s, r, d, sub]) => {
+        const _data = { groups:g.groups||[], courses:c.courses||[], slots:s.slots||[], rooms:r.rooms||[], departments:d.departments||d||[], subjects:sub.subjects||sub||[] };
+        setData(_data);
+        if (_data.slots.length) {
+          setDays(Array.from(new Set(_data.slots.map((x:any)=>x.day_of_week))));
+          setSlots(Array.from(new Set(_data.slots.map((x:any)=>x.start_time.slice(0,5)))).sort() as any);
+        }
+        if (_data.groups.length && !selectedGroup) { setSelectedGroup(_data.groups[0].id); fetchGrid(_data.groups[0].id); }
+      }).finally(() => setLoading(false));
   };
 
-  const handleGenerate = async () => {
-    if (!selectedGroup) return;
-    setIsGenerating(true);
-    try {
-      const res = await fetch('/api/admin/scheduling/generate', {
-        method: 'POST',
-        body: JSON.stringify({ groupId: selectedGroup })
-      });
-      const data = await res.json();
-      if (data.success) fetchTimetable(selectedGroup);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  const fetchGrid = (id: string) => { if (!id) return; setLoading(true); api(`/api/admin/scheduling/timetable?groupId=${id}`).then(d => setEntries(d.entries||[])).finally(()=>setLoading(false)); };
+  useEffect(refreshInfras, []);
 
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
-
-  const handleBroadcast = async () => {
-    setIsBroadcasting(true);
-    try {
-      const res = await fetch('/api/admin/scheduling/publish', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        alert('Schedule broadcast successful! All units notified.');
-        fetchTimetable(selectedGroup);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsBroadcasting(false);
-    }
+  const handleSave = async (e: any) => {
+    e.preventDefault();
+    const urls:any = { departments:'/api/admin/scheduling/departments', courses:'/api/admin/scheduling/courses', groups:'/api/admin/scheduling/groups', subjects:'/api/admin/scheduling/subjects', rooms:'/api/admin/scheduling/rooms', slots:'/api/admin/scheduling/slots' };
+    if ((await api(urls[subTab], 'POST', form)).success) { setModal(false); setForm({}); refreshInfras(); }
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b">
+    <div className="max-w-auto space-y-8 animate-fade-in pb-20">
+      <header className="flex justify-between items-center pb-6 border-b border-surface-800">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Calendar className="w-8 h-8 text-primary" />
-            Class Scheduling
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">Automated academic timetable management system.</p>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3"><Calendar className="text-primary-500" /> Academic Schedule</h1>
+          <p className="text-surface-400 text-xs font-mono mt-1 uppercase tracking-widest leading-none">Automated Timetable & Infrastructure</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={handleGenerate}
-            disabled={isGenerating || !selectedGroup}
-            className="flex items-center justify-center gap-2 bg-primary text-secondary px-6 py-2.5 rounded-lg font-bold text-sm hover:opacity-90 disabled:opacity-50 transition-all shadow-sm"
-          >
-            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
-            Generate Schedule
-          </button>
-          <button className="flex items-center justify-center gap-2 bg-muted hover:bg-accent px-4 py-2.5 rounded-lg font-bold text-sm transition-all border">
-            <Download size={16} />
-          </button>
+        <div className="flex gap-3">
+          <div className="bg-surface-900 p-1 rounded-xl border border-surface-800 flex">
+            {['grid', 'infra'].map(v => (
+              <button key={v} onClick={() => setView(v as any)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-primary-600 text-white shadow-lg' : 'text-surface-500 hover:text-surface-300'}`}>{v}</button>
+            ))}
+          </div>
+          {view === 'grid' ? (
+            <button key="gen" onClick={() => api('/api/admin/scheduling/generate', 'POST', {groupId:selectedGroup}).then(()=>fetchGrid(selectedGroup))} className="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-500 shadow-lg shadow-primary-500/10 transition-colors"><Settings size={14}/> Generate</button>
+          ) : (
+            <button key="add" onClick={() => {setForm({}); setModal(true);}} className="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-500 shadow-lg shadow-primary-500/10 transition-colors"><Plus size={14}/> Add {subTab.slice(0,-1)}</button>
+          )}
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-3 space-y-6">
-          <div className="bg-card border rounded-xl overflow-hidden shadow-sm p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-              <div className="space-y-1">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <ChevronRight size={20} className="text-primary" />
-                  Execution Grid
-                </h2>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Viewing scheduled sessions for the selected group</p>
-              </div>
-
-              <div className="flex items-center gap-2 min-w-[250px]">
-                <Filter size={16} className="text-muted-foreground" />
-                <select 
-                  value={selectedGroup}
-                  onChange={(e) => {
-                    setSelectedGroup(e.target.value);
-                    fetchTimetable(e.target.value);
-                  }}
-                  className="w-full bg-muted/40 border rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 ring-primary/20 outline-none transition-all"
-                >
-                  <option value="">Select Group...</option>
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>{g.name} - {g.course_name}</option>
-                  ))}
+      {view === 'grid' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-3 bg-surface-900 border border-surface-800 rounded-2xl p-6 shadow-sm">
+             <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-surface-400">Timetable Grid</h2>
+                <select value={selectedGroup} onChange={e => {setSelectedGroup(e.target.value); fetchGrid(e.target.value);}} className="bg-surface-950 border border-surface-800 rounded-xl px-4 py-2 text-xs font-bold text-white focus:border-primary-500 outline-none w-64">
+                   <option value="">Select Group...</option>
+                   {data.groups?.map((g:any) => <option key={g.id} value={g.id}>{g.name} - {g.course_name}</option>)}
                 </select>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="h-[400px] flex flex-col items-center justify-center opacity-40 gap-4">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                <span className="text-sm font-bold uppercase tracking-widest animate-pulse">Loading Schedule Data...</span>
-              </div>
-            ) : entries.length === 0 ? (
-              <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl gap-4 text-muted-foreground">
-                <AlertCircle size={40} className="opacity-20" />
-                <p className="text-sm font-bold opacity-40">No entries found for this group.</p>
-                <button onClick={handleGenerate} className="text-primary font-bold text-xs hover:underline uppercase tracking-widest">Generate Now</button>
-              </div>
-            ) : (
-              <div className="animate-in fade-in zoom-in-95 duration-500">
-                <TimetableGrid 
-                  entries={entries} 
-                  days={days} 
-                  timeSlots={timeSlots} 
-                />
-              </div>
-            )}
+             </div>
+             {loading ? <div className="h-96 flex justify-center items-center"><Loader2 className="animate-spin text-primary-500" /></div> : <TimetableGrid entries={entries} days={days} timeSlots={slots} />}
+          </div>
+          <div className="space-y-6">
+             <div className="bg-primary-600/5 border border-primary-500/10 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center gap-2 text-primary-400 font-black text-xs uppercase tracking-widest"><ShieldCheck size={16}/> Broadcast Ready</div>
+                <p className="text-[11px] text-surface-500 leading-relaxed font-medium">Once verified, deploy the timetable to all student and faculty nodes.</p>
+                <button onClick={() => api('/api/admin/scheduling/publish', 'POST').then(()=>alert('Broadcast Success'))} className="w-full bg-primary-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-500 transition-all shadow-lg shadow-primary-500/10">Publish Schedule</button>
+             </div>
+             <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6 space-y-4 shadow-sm">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-surface-500 border-b border-surface-800 pb-3">Quick Navigation</h3>
+                {[{l:'Subjects',i:BookOpen}, {l:'Venues',i:MapPin}, {l:'Faculty',i:User}].map((x:any,i)=> (
+                  <button key={i} onClick={()=>setView('infra')} className="w-full flex justify-between items-center p-3 rounded-xl bg-surface-950/50 border border-surface-800 hover:border-primary-500/50 transition-colors group"><div className="flex items-center gap-3"><x.i size={14} className="text-surface-500 group-hover:text-primary-400" /><span className="text-xs font-bold text-surface-300 group-hover:text-white">{x.l}</span></div><Activity size={12} className="text-surface-600" /></button>
+                ))}
+             </div>
           </div>
         </div>
-
+      ) : (
         <div className="space-y-6">
-          <div className="bg-card border rounded-xl p-6 shadow-sm space-y-6">
-            <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground border-b pb-4">Configuration Modules</h3>
-            
-            <div className="space-y-3">
-              {[
-                { title: 'Register Units', path: '/admin/scheduling/entities', icon: Plus },
-                { title: 'Map Subject Groups', path: '/admin/scheduling/entities', icon: BookOpen },
-                { title: 'Faculty Deployment', path: '/employees', icon: User },
-                { title: 'Room Allocation', path: '/admin/scheduling/entities', icon: MapPin },
-              ].map((link, idx) => (
-                <a 
-                  key={idx}
-                  href={link.path}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-primary/5 hover:border-primary/20 border transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <link.icon size={18} className="text-primary/60 group-hover:text-primary transition-colors" />
-                    <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{link.title}</span>
-                  </div>
-                  <ChevronRight size={14} className="text-muted-foreground opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </a>
-              ))}
-            </div>
+          <div className="flex border-b border-surface-800 gap-8 overflow-x-auto pb-px">
+            {['departments','courses','groups','subjects','rooms','slots'].map(id => (
+              <button key={id} onClick={() => setSubTab(id)} className={`pb-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${subTab === id ? 'text-primary-500' : 'text-surface-500 hover:text-surface-300'}`}>
+                {id} {subTab === id && <div className="absolute bottom-[-1px] left-0 w-full h-[3px] bg-primary-500 rounded-full" />}
+              </button>
+            ))}
           </div>
-
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 space-y-4">
-            <div className="flex items-center gap-2 text-primary font-bold">
-              <CheckCircle2 size={18} />
-              <span className="text-sm">Broadcast Ready</span>
-            </div>
-            <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-              Once the schedule is verified, broadcast the timetable to all assigned faculty units and students.
-            </p>
-            <button 
-              onClick={handleBroadcast}
-              disabled={isBroadcasting}
-              className="w-full bg-primary text-secondary py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isBroadcasting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isBroadcasting ? 'Broadcasting...' : 'Broadcast All'}
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {data[subTab]?.map((item:any, i:number) => (
+              <div key={i} className="bg-surface-900 border border-surface-800 p-5 rounded-2xl hover:border-primary-500/50 group transition-all">
+                <div className="flex justify-between items-start">
+                  <div className="w-10 h-10 bg-surface-950 rounded-xl flex items-center justify-center text-primary-500 border border-surface-800"><Building2 size={18}/></div>
+                  <button onClick={()=>api(`${subTab==='subjects'?'/api/admin/scheduling/subjects':'#'}/${item.id}`,'DELETE').then(refreshInfras)} className="text-surface-600 hover:text-red-500 opacity-0 group-hover:opacity-100 p-1"><Trash2 size={14}/></button>
+                </div>
+                <h4 className="font-bold text-white text-sm mt-4 truncate">{item.name || item.room_number || `${item.start_time} - ${item.end_time}`}</h4>
+                <p className="text-[10px] font-bold text-surface-500 uppercase tracking-widest mt-1 truncate">{item.course_name || item.day_of_week || `NODE ${item.id?.slice(0,6)}`}</p>
+              </div>
+            ))}
+            {!data[subTab]?.length && <div className="col-span-full p-24 text-center text-surface-600 italic border-2 border-dashed border-surface-800 rounded-3xl">Registry empty for this node.</div>}
           </div>
         </div>
-      </div>
+      )}
+
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+           <div className="bg-surface-900 w-full max-w-md rounded-3xl border border-surface-800 p-8 shadow-2xl relative">
+              <h3 className="text-lg font-black uppercase tracking-widest text-white mb-6">Register {subTab.slice(0,-1)}</h3>
+              <form onSubmit={handleSave} className="space-y-4">
+                 <input placeholder="Identifier Name" required value={form.name||''} onChange={e=>setForm({...form, name:e.target.value})} className="w-full bg-surface-950 border border-surface-800 p-4 rounded-xl text-sm text-white focus:border-primary-500 outline-none" />
+                 {subTab==='courses' && <select required className="w-full bg-surface-950 border border-surface-800 p-4 rounded-xl text-sm text-white outline-none" onChange={e=>setForm({...form, department_id:e.target.value})}><option value="">Select Dept</option>{data.departments.map((d:any)=><option key={d.id} value={d.id}>{d.name}</option>)}</select>}
+                 {['groups','subjects'].includes(subTab) && <select required className="w-full bg-surface-950 border border-surface-800 p-4 rounded-xl text-sm text-white outline-none" onChange={e=>setForm({...form, course_id:e.target.value})}><option value="">Select Course</option>{data.courses.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+                 {subTab==='subjects' && <input type="number" placeholder="Weekly Load (Hours)" required onChange={e=>setForm({...form, hours_per_week:parseInt(e.target.value)})} className="w-full bg-surface-950 border border-surface-800 p-4 rounded-xl text-sm text-white outline-none" />}
+                 <div className="flex gap-3 pt-4">
+                    <button type="button" onClick={()=>setModal(false)} className="flex-1 bg-surface-800 text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest">Cancel</button>
+                    <button type="submit" className="flex-1 bg-primary-600 text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest">Register</button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,61 +2,45 @@ import cron from 'node-cron';
 import { ZKService } from '../biometric/zk-service';
 import { query } from '../db/postgres';
 
-let isSyncing = false;
-
+/**
+ * PRODUCTION SYNC WORKER: HEARTBEAT WINDOW (2 MINUTES)
+ * Delegating all logic to the Service level for simplicity.
+ */
 export function initSyncWorker() {
-  const deviceIp = process.env.ZKTECO_DEVICE_IP;
-  if (!deviceIp) {
-    console.warn('⚠️ ZKTECO_DEVICE_IP not set. Biometric sync worker disabled.');
+  const defaultIp = process.env.ZKTECO_DEVICE_IP;
+  if (!defaultIp) {
+    console.warn('⚠️ ZKTECO_DEVICE_IP not set. Sync worker disabled.');
     return;
   }
 
-  // Sync every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
-    if (isSyncing) return;
+  cron.schedule('*/2 * * * *', async () => {
+    console.log(`🕒 [SYNC HEARTBEAT] Iterating through devices (${new Date().toLocaleTimeString()})...`);
     
     try {
-      isSyncing = true;
-      console.log('🕒 Starting scheduled biometric sync for all devices...');
+      // 1. Fetch devices from DB
+      const devicesRes = await query(
+        "SELECT tenant_id, device_ip, id as device_id FROM tenant_devices WHERE status = 'active'"
+      );
+
+      if (devicesRes.rows.length === 0) {
+        // Fallback for simple single-tenant setup
+        await new ZKService(defaultIp).sync('default', 'ENV-DEVICE-01');
+      } else {
+        // Parallel sync window (limit to 5 at a time for safety)
+        for (const dev of devicesRes.rows) {
+          try {
+            await new ZKService(dev.device_ip).sync(dev.tenant_id, dev.device_id);
+          } catch (err) {
+            console.error(`❌ Sync skip for ${dev.device_ip}:`, err);
+          }
+        }
+      }
       
-      // Get all active devices from all tenants
-      const devicesRes = await query('SELECT tenant_id, device_ip FROM tenant_devices WHERE status = \'active\'');
-      const devices = devicesRes.rows;
-
-      if (devices.length === 0) {
-        // Fallback to env variable if no devices in DB (legacy support)
-        const envIp = process.env.ZKTECO_DEVICE_IP;
-        if (envIp) {
-            const tenantRes = await query('SELECT id FROM tenants LIMIT 1');
-            const tenantId = tenantRes.rows[0]?.id;
-            if (tenantId) {
-                console.log(`📡 Syncing fallback device ${envIp}...`);
-                const zkService = new ZKService(envIp);
-                await zkService.syncLogs(tenantId);
-            }
-        } else {
-            console.warn('⚠️ No active biometric devices found.');
-        }
-        return;
-      }
-
-      for (const device of devices) {
-        try {
-          console.log(`📡 Syncing device at ${device.device_ip}...`);
-          const zkService = new ZKService(device.device_ip);
-          await zkService.syncLogs(device.tenant_id);
-        } catch (err) {
-          console.error(`❌ Sync failed for device ${device.device_ip}:`, err);
-        }
-      }
-
-      console.log('✅ All scheduled biometric syncs completed.');
+      console.log(`✅ [SYNC HEARTBEAT] All cycles completed.`);
     } catch (error) {
-      console.error('❌ Scheduled biometric sync failed:', error);
-    } finally {
-      isSyncing = false;
+      console.error(`❌ Global Sync failure:`, error);
     }
   });
 
-  console.log('🚀 Biometric Sync Worker initialized (every 30m)');
+  console.log('🚀 SYSTEM ALERT: Biometric Sync Worker initialized (2m Window)');
 }
