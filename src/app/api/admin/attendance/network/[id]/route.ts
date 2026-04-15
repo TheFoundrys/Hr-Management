@@ -6,7 +6,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 /**
  * Update or Delete a Network Policy
  */
-export async function PATCH(request: Request, context: { params: { id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
@@ -17,7 +17,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { id } = context.params;
+    const { id } = await context.params;
     const { tenantId } = payload;
     const { ip_address_or_range, label, is_active } = await request.json();
 
@@ -42,7 +42,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   }
 }
 
-export async function DELETE(request: Request, context: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
@@ -53,7 +53,7 @@ export async function DELETE(request: Request, context: { params: { id: string }
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { id } = context.params;
+    const { id } = await context.params;
     const { tenantId } = payload;
 
     const result = await query(

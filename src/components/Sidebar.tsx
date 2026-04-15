@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Clock, Calendar, Wallet,
   LogOut, GraduationCap, ChevronLeft, Menu, Fingerprint,
   FileText, UserCircle, Shield, CalendarDays, CalendarOff,
-  MessageSquare
+  MessageSquare, Building2
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
@@ -22,6 +22,7 @@ const navItems = [
   { href: '/biometric', label: 'Biometric', icon: Fingerprint, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { href: '/admin/attendance/network', label: 'Network Security', icon: Shield, roles: ['SUPER_ADMIN', 'ADMIN'] },
   { href: '/admin/requests', label: 'Support Requests', icon: MessageSquare, roles: ['SUPER_ADMIN', 'ADMIN', 'HR'] },
+  { href: '/superadmin/tenants', label: 'Tenants', icon: Building2, roles: ['SUPER_ADMIN'] },
   { href: '/profile', label: 'Profile', icon: UserCircle, roles: ['SUPER_ADMIN', 'ADMIN', 'HOD', 'HR', 'STAFF', 'NON_TEACHING'] },
 ];
 

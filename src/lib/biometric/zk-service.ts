@@ -36,12 +36,12 @@ export class ZKService {
       console.log(`[ZK] Syncing logs from ${this.ip}...`);
       const logsResponse = await this.zkInstance.getAttendances();
       if (logsResponse.err) throw new Error(`Device error: ${logsResponse.err}`);
-      
+
       const logsData = logsResponse.data || [];
 
       // 3. Store and Process
       const count = await batchInsertLogs(logsData, tenantId, deviceId);
-      
+
       const today = new Date().toISOString().split('T')[0];
       const processing = await processAttendance(tenantId, today);
 
@@ -52,7 +52,7 @@ export class ZKService {
       throw error;
     } finally {
       if (connected) {
-        try { await this.zkInstance.disconnect(); } catch (e) {}
+        try { await this.zkInstance.disconnect(); } catch (e) { }
       }
     }
   }
@@ -68,7 +68,7 @@ export class ZKService {
       const logsResponse = await this.zkInstance.getAttendances();
       return logsResponse.data || [];
     } finally {
-      if (connected) try { await this.zkInstance.disconnect(); } catch (e) {}
+      if (connected) try { await this.zkInstance.disconnect(); } catch (e) { }
     }
   }
 
@@ -82,13 +82,13 @@ export class ZKService {
       connected = true;
       const usersResponse = await this.zkInstance.getUsers();
       if (usersResponse.err) throw new Error(usersResponse.err);
-      
+
       return { success: true, users: usersResponse.data || [] };
     } catch (error) {
       console.error(`[ZK] GetUsers failure at ${this.ip}:`, error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     } finally {
-      if (connected) try { await this.zkInstance.disconnect(); } catch (e) {}
+      if (connected) try { await this.zkInstance.disconnect(); } catch (e) { }
     }
   }
 
@@ -106,7 +106,7 @@ export class ZKService {
       console.error(`[ZK] Test failure at ${this.ip}:`, error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     } finally {
-      if (connected) try { await this.zkInstance.disconnect(); } catch (e) {}
+      if (connected) try { await this.zkInstance.disconnect(); } catch (e) { }
     }
   }
 
@@ -125,7 +125,7 @@ export class ZKService {
       console.error(`[ZK] Status update failure at ${this.ip}:`, error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     } finally {
-      if (connected) try { await this.zkInstance.disconnect(); } catch (e) {}
+      if (connected) try { await this.zkInstance.disconnect(); } catch (e) { }
     }
   }
 }

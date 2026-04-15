@@ -12,42 +12,48 @@ export default function BiometricPage() {
   const [error, setError] = useState<string | null>(null);
   const [rawData, setRawData] = useState('USERID=1\tCHECKTIME=2026-03-31 09:12:00\tSTATUS=0');
 
-  const fetchInit = () => {
+  const fetchInit = async () => {
     setLoading(true);
     setError(null);
-    const api = (url: string) => fetch(url).then(async r => {
+    
+    const api = async (url: string) => {
+      const r = await fetch(url);
       if (!r.ok) {
         const text = await r.text();
-        try { 
-          const json = JSON.parse(text);
-          throw new Error(json.error || `HTTP ${r.status}`);
-        } catch (e) {
-          throw new Error(`HTTP ${r.status}: ${text.substring(0, 50)}`);
-        }
+        throw new Error(`HTTP ${r.status}: ${text.substring(0, 50)}`);
       }
       return r.json();
-    });
+    };
     
-    Promise.all([
-      api('/api/biometric/users').catch(e => ({ success: false, error: e.message, users: [] })),
-      api('/api/admin/attendance/settings').catch(e => ({ success: false })),
-      api('/api/admin/devices').catch(e => ({ success: false }))
-    ]).then(([u, s, d]) => {
-      if (u.success) {
-        setUsers(u.users || []);
-      } else {
-        setError(u.error);
-        console.error('Users load failed:', u.error);
-      }
-      
-      if (s.success && s.settings) setMode(s.settings.attendance_mode || 'WEB_UI');
+    try {
+      // 1. Fetch devices first
+      const d = await api('/api/admin/devices').catch(() => ({ success: true, devices: [] }));
       if (d.success) setDevices(d.devices || []);
-    }).catch(e => {
+
+      // 2. Fetch users for the first device if available
+      const firstDeviceIp = d.devices?.[0]?.device_ip;
+      if (firstDeviceIp) {
+        const u = await api(`/api/biometric/users?ip=${firstDeviceIp}`).catch(e => ({ success: false, error: e.message, users: [] }));
+        if (u.success) setUsers(u.users || []);
+        else setError(u.error);
+      } else {
+        setUsers([]); // No devices, no users
+      }
+
+      // 3. Fetch settings
+      const s = await api('/api/admin/attendance/settings').catch(() => ({ success: false }));
+      if (s.success && s.settings) setMode(s.settings.attendance_mode || 'WEB_UI');
+
+    } catch (e: any) {
       setError(e.message);
       console.error('Fetch error:', e);
-    }).finally(() => setLoading(false));
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(fetchInit, []);
+  useEffect(() => {
+    fetchInit();
+  }, []);
 
   const saveMode = async () => {
     const res = await fetch('/api/admin/attendance/settings', { method: 'PATCH', body: JSON.stringify({ attendance_mode: mode }) });
@@ -69,8 +75,7 @@ export default function BiometricPage() {
     setLoading(true);
     try {
       const res = await fetch('/api/attendance/process', { 
-        method: 'POST',
-        headers: { 'x-tenant-id': '60beec0c-7c6e-4687-b9c8-ef4bcfb8d972' } 
+        method: 'POST'
       });
       const data = await res.json();
       if (data.success) {

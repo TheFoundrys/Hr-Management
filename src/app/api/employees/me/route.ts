@@ -54,7 +54,10 @@ export async function GET(request: Request) {
       const firstName = names[0];
       const lastName = names.slice(1).join(' ') || 'User';
       const newEmpId = empIdStr || `TFU-AUTO-${Date.now().toString().slice(-6)}`;
-      const defaultDept = '0bd710c2-bb92-4c77-a67f-013573f25cc0'; // Default: Mathematics
+      
+      // Dynamically find a department if one exists, otherwise null
+      const deptRes = await query('SELECT id FROM departments WHERE tenant_id = $1 LIMIT 1', [tenantId]);
+      const defaultDept = deptRes.rows[0]?.id || null;
 
       await query(
         `INSERT INTO employees (id, employee_id, university_id, first_name, last_name, email, tenant_id, department_id, user_id, is_active, role)

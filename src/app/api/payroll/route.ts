@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
+import { getTenantId } from '@/lib/utils/tenant';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
 export async function GET(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const { searchParams } = new URL(request.url);
     const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const body = await request.json();
     const { month, year, employeeId } = body;
 

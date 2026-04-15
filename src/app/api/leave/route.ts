@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
+import { getTenantId } from '@/lib/utils/tenant';
 
 export async function GET(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const employeeId = searchParams.get('employeeId');
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const body = await request.json();
 
     const startDate = new Date(body.startDate);
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const tenantId = await getTenantId(request);
     const body = await request.json();
     const { leaveId, action, comments } = body;
     const approvedBy = request.headers.get('x-user-name') || 'admin';

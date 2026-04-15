@@ -57,11 +57,11 @@ export default function LoginPage() {
           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal Identity</label>
           <input
             id="login-email"
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all"
-            placeholder="you@university.edu"
+            placeholder="Email or Admin Username"
             required
           />
         </div>
@@ -95,10 +95,10 @@ export default function LoginPage() {
         )}
 
         <div className="flex items-center justify-between px-1">
-          <a href="/forgot-password" size="sm" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
+          <a href="/forgot-password" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
             Forgot Password?
           </a>
-          <a href="/register" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline underline-offset-4 decoration-2">
+          <a href="/register" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline underline-offset-4 decoration-2">
             Create Identity
           </a>
         </div>

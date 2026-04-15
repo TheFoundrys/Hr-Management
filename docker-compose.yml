@@ -1,0 +1,36 @@
+
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: hrms-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-toptima_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Toptima_0668}
+      POSTGRES_DB: ${POSTGRES_DATABASE:-hrms_tf}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hrms-app
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-toptima_dev}:${POSTGRES_PASSWORD:-Toptima_0668}@db:5432/${POSTGRES_DATABASE:-hrms_tf}
+      JWT_SECRET: ${JWT_SECRET}
+      ZKTECO_DEVICE_IP: ${ZKTECO_DEVICE_IP}
+      # Inject other necessary env vars here
+    ports:
+      - "3000:3000"
+    volumes:
+      - .env:/app/.env
+
+volumes:
+  postgres_data:

@@ -23,6 +23,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: Invalid secret key' }, { status: 403 });
     }
 
+    // Resolved Tenant (Mandatory for multi-tenant database)
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId || tenantId === 'default') {
+      return NextResponse.json({ error: 'Valid Tenant Context Required' }, { status: 400 });
+    }
+
     // Parse raw text body
     const rawBody = await request.text();
     const logs = rawBody
@@ -33,9 +39,6 @@ export async function POST(request: Request) {
     if (logs.length === 0) {
       return NextResponse.json({ error: 'No valid biometric data' }, { status: 400 });
     }
-
-    // Default tenant (can be overridden by header)
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
 
     const savedCount = [];
     for (const log of logs) {

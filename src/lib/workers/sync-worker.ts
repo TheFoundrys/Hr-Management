@@ -23,8 +23,7 @@ export function initSyncWorker() {
       );
 
       if (devicesRes.rows.length === 0) {
-        // Fallback for simple single-tenant setup
-        await new ZKService(defaultIp).sync('default', 'ENV-DEVICE-01');
+        console.log(`ℹ️ [SYNC HEARTBEAT] No active devices found. Skipping cycle.`);
       } else {
         // Parallel sync window (limit to 5 at a time for safety)
         for (const dev of devicesRes.rows) {

@@ -1,4 +1,4 @@
-import { query } from './db';
+import { query } from './db/postgres';
 
 export interface UniversalDeviceLog {
   deviceId: string;

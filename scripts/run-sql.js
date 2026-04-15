@@ -25,8 +25,13 @@ async function runSql() {
 
   try {
     console.log(`🚀 Executing SQL from ${sqlFile}...`);
-    await pool.query(sql);
+    const result = await pool.query(sql);
     console.log('✅ SQL executed successfully!');
+    if (result.rows && result.rows.length > 0) {
+      console.table(result.rows);
+    } else {
+      console.log('No rows returned.');
+    }
   } catch (err) {
     console.error('❌ Error executing SQL:', err);
     process.exit(1);

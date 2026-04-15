@@ -10,8 +10,12 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const body = await request.json().catch(() => ({}));
     
-    const deviceIp = body.ip || searchParams.get('ip') || process.env.ZKTECO_DEVICE_IP;
-    const tenantId = request.headers.get('x-tenant-id') || 'default';
+    const deviceIp = body.ip || searchParams.get('ip');
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId || tenantId === 'default') {
+       // Optional: try to get from session if headers missing
+       return NextResponse.json({ error: 'Valid Tenant ID required' }, { status: 400 });
+    }
     const deviceId = body.deviceId || 'MANUAL-SYNC';
 
     if (!deviceIp) {
@@ -22,7 +26,6 @@ export async function POST(request: Request) {
     const result = await new ZKService(deviceIp).sync(tenantId, deviceId);
 
     return NextResponse.json({
-      success: true,
       message: `Sync successful. Processed ${result.processing.records} attendance records.`,
       ...result
     });

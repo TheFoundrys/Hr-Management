@@ -26,7 +26,7 @@ export async function batchInsertLogs(logs: any[], tenantId: string, deviceId: s
       values.push(
         userId, 
         new Date(time), 
-        tenantId || 'default', 
+        tenantId, // Must be a valid UUID
         deviceId || 'UNKNOWN-DEVICE', 
         JSON.stringify(log)
       );

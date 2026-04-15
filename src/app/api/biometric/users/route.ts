@@ -7,9 +7,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedIp = searchParams.get('ip');
-    const deviceIp = requestedIp || process.env.ZKTECO_DEVICE_IP;
+    const deviceIp = requestedIp;
 
-    if (!deviceIp) return NextResponse.json({ success: false, error: 'Not configured' }, { status: 400 });
+    if (!deviceIp) return NextResponse.json({ success: false, error: 'No device IP provided or configured' }, { status: 400 });
     
     const zk = new ZKService(deviceIp);
     const result = await zk.getUsers();

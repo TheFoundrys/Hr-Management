@@ -38,6 +38,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found or forbidden' }, { status: 404 });
     }
 
+    const user = result.rows[0];
+    const names = user.name.split(' ');
+    const firstName = names[0];
+    const lastName = names.slice(1).join(' ') || 'User';
+    const tempUniversityId = `TFU-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // Create Employee record
+    await query(`
+      INSERT INTO employees (
+        tenant_id, user_id, university_id, first_name, last_name, 
+        email, is_active, role
+      ) VALUES ($1, $2, $3, $4, $5, $6, true, $7)
+      ON CONFLICT (user_id) DO UPDATE SET is_active = true
+    `, [
+      payload.tenantId, userId, tempUniversityId, 
+      firstName, lastName, user.email, newRole
+    ]);
+
     // Audit Log execution
     await query(`
       INSERT INTO audit_logs (action, performed_by, target_id, details)
@@ -46,13 +64,13 @@ export async function POST(request: Request) {
       'APPROVE_USER_ROLE',
       payload.userId,
       userId,
-      JSON.stringify({ new_role: newRole, original_role: 'PENDING' })
+      JSON.stringify({ new_role: newRole, original_role: 'PENDING', university_id: tempUniversityId })
     ]);
 
     return NextResponse.json({
       success: true,
-      message: 'User approved and role assigned successfully',
-      user: result.rows[0]
+      message: 'User approved and employee record created',
+      user: user
     });
   } catch (error) {
     console.error('User approval error:', error);
