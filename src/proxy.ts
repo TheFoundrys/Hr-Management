@@ -6,7 +6,7 @@ import { getRequiredPermissionForPath, hasPermission } from '@/lib/auth/rbac';
 const publicPaths = [
   '/login', '/register', '/forgot-password', '/reset-password',
   '/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', 
-  '/api/auth/reset-password', '/api/auth/verify',
+  '/api/auth/reset-password', '/api/auth/verify', '/api/verify',
   '/api/biometric/push', '/api/attendance/ingest'
 ];
 

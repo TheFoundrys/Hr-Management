@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendVerificationEmail(email: string, name: string, token: string) {
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify?token=${token}`;
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/verify?token=${token}`;
 
   const mailOptions = {
     from: `"The Foundrys HR" <${process.env.SMTP_USER}>`,
@@ -60,7 +60,7 @@ export async function sendResetPasswordEmail(email: string, name: string, token:
 }
 
 export async function sendOnboardingInvite(email: string, name: string, tempPassword: string, token: string) {
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify?token=${token}`;
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/verify?token=${token}`;
 
   const mailOptions = {
     from: `"The Foundrys HR" <${process.env.SMTP_USER}>`,
