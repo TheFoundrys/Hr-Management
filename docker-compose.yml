@@ -1,5 +1,4 @@
 
-
 services:
   db:
     image: postgres:15-alpine
@@ -26,7 +25,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-toptima_dev}:${POSTGRES_PASSWORD:-Toptima_0668}@db:5432/${POSTGRES_DATABASE:-hrms_tf}
       JWT_SECRET: ${JWT_SECRET}
       ZKTECO_DEVICE_IP: ${ZKTECO_DEVICE_IP}
-      # Inject other necessary env vars here
+      APP_URL: ${NEXT_PUBLIC_APP_URL}
     ports:
       - "3000:3000"
     volumes:

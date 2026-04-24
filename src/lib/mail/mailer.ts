@@ -1,5 +1,10 @@
 import nodemailer from 'nodemailer';
 
+// Ensure environment variables are loaded if running in standalone mode
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
@@ -10,8 +15,22 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/**
+ * Helper to get the base application URL
+ * Priority: APP_URL > NEXT_PUBLIC_APP_URL > Fallback
+ */
+const getAppUrl = () => {
+  const url = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (!url) {
+    console.warn('⚠️ APP_URL is not defined in environment variables. Defaulting to hrms.thefoundrys.com');
+    return 'https://hrms.thefoundrys.com';
+  }
+  return url.replace(/\/$/, ''); // Remove trailing slash if any
+};
+
 export async function sendVerificationEmail(email: string, name: string, token: string) {
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/verify?token=${token}`;
+  const baseUrl = getAppUrl();
+  const verifyUrl = `${baseUrl}/api/verify?token=${token}`;
 
   const mailOptions = {
     from: `"The Foundrys HR" <${process.env.SMTP_USER}>`,
@@ -35,7 +54,8 @@ export async function sendVerificationEmail(email: string, name: string, token: 
 }
 
 export async function sendResetPasswordEmail(email: string, name: string, token: string) {
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
+  const baseUrl = getAppUrl();
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
   const mailOptions = {
     from: `"The Foundrys HR" <${process.env.SMTP_USER}>`,
@@ -60,7 +80,8 @@ export async function sendResetPasswordEmail(email: string, name: string, token:
 }
 
 export async function sendOnboardingInvite(email: string, name: string, tempPassword: string, token: string) {
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/verify?token=${token}`;
+  const baseUrl = getAppUrl();
+  const verifyUrl = `${baseUrl}/api/verify?token=${token}`;
 
   const mailOptions = {
     from: `"The Foundrys HR" <${process.env.SMTP_USER}>`,
