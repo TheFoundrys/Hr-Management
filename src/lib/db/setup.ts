@@ -23,7 +23,10 @@ export async function setupDatabase() {
     // Ensure the tenant_id column exists for old databases
     await query(`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id UUID`);
 
-    // 2. Rate Limits Table
+    // 2. Leave Types - Ensure is_paid exists for Payroll
+    await query(`ALTER TABLE leave_types ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT TRUE`);
+
+    // 3. Rate Limits Table
     await query(`
       CREATE TABLE IF NOT EXISTS rate_limits (
         ip TEXT PRIMARY KEY,
@@ -33,7 +36,7 @@ export async function setupDatabase() {
       )
     `);
 
-    // 3. Performance Indexes
+    // 4. Performance Indexes
     await query('CREATE INDEX IF NOT EXISTS idx_attendance_composite ON attendance (employee_id, tenant_id, date)');
     await query('CREATE UNIQUE INDEX IF NOT EXISTS idx_biometric_logs_conflict_target ON biometric_logs (device_user_id, timestamp, tenant_id)');
     await query('CREATE INDEX IF NOT EXISTS idx_biometric_logs_lookup ON biometric_logs (tenant_id, timestamp, device_user_id)');

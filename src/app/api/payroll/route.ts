@@ -28,6 +28,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // 0. SELF-REPAIR: Ensure leave_types table has the required is_paid column for payroll
+    await query(`ALTER TABLE leave_types ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT TRUE`);
+
     const tenantId = await getTenantId(request);
     const body = await request.json();
     const { month, year, employeeId } = body;

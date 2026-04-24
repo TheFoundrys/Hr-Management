@@ -30,10 +30,10 @@ export async function GET(request: Request) {
 
     const canViewPayroll = hasPermission(baseRole, 'MANAGE_PAYROLL');
 
-    // Core employee fields (No bank details or raw salary unless authorized)
+    // Core employee fields
     const empFields = `
       e.id, e.university_id, e.first_name, e.last_name, e.email, e.phone, e.role, e.is_active,
-      e.department_id, e.designation_id, e.manager_id
+      e.department_id, e.designation_id, e.manager_id, e.employee_id
       ${canViewPayroll ? ', e.salary_basic, e.salary_hra, e.salary_allowances, e.salary_deductions' : ''}
     `;
 
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
         LEFT JOIN departments d ON e.department_id = d.id
         LEFT JOIN designations ds ON e.designation_id = ds.id
         LEFT JOIN employees m ON e.manager_id = m.id
-        WHERE e.tenant_id = $1 AND e.is_active = true
+        WHERE e.tenant_id = $1
       `;
       if (search) {
         params.push(`%${search}%`);
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
           LEFT JOIN departments d ON e.department_id = d.id
           LEFT JOIN designations ds ON e.designation_id = ds.id
           LEFT JOIN employees m ON e.manager_id = m.id
-          WHERE e.tenant_id = $1 AND e.department_id = $2 AND e.is_active = true
+          WHERE e.tenant_id = $1 AND e.department_id = $2
         `;
         params.push(currentDepartmentId);
         if (search) {
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
         }
         queryString += ' ORDER BY e.first_name';
       } else {
-        const subFields = `id, manager_id, first_name, last_name, email, university_id, department_id, designation_id, role, phone, is_active ${canViewPayroll ? ', salary_basic, salary_hra, salary_allowances, salary_deductions' : ''}`;
+        const subFields = `id, manager_id, first_name, last_name, email, university_id, employee_id, department_id, designation_id, role, phone, is_active ${canViewPayroll ? ', salary_basic, salary_hra, salary_allowances, salary_deductions' : ''}`;
 
         queryString = `
           WITH RECURSIVE subordinates AS (
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
             SELECT e.${subFields.replace(/,/g, ', e.')}, s.level + 1
             FROM employees e
             INNER JOIN subordinates s ON s.id = e.manager_id
-            WHERE e.tenant_id = $2 AND e.is_active = true
+            WHERE e.tenant_id = $2
           )
           SELECT s.*, d.name as department_name, ds.name as designation_name,
                  m.first_name || ' ' || m.last_name as reporting_name,
@@ -117,6 +117,7 @@ export async function GET(request: Request) {
     const employees = result.rows.map(emp => ({
       ...emp,
       name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+      status: emp.is_active ? 'active' : 'inactive',
       reporting_name: emp.reporting_name || 'System Admin',
       department_name: emp.department_name || 'Institutional',
       designation_name: emp.designation_name || emp.role
@@ -159,14 +160,12 @@ export async function POST(request: Request) {
     const [firstName, ...lastNameParts] = name.split(' ');
     const lastName = lastNameParts.join(' ') || '';
 
-    // Handle department resolution (might be name or ID)
     let finalDepartmentId = null;
     if (departmentId && departmentId.trim()) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(departmentId);
       if (isUuid) {
         finalDepartmentId = departmentId;
       } else {
-        // Try to find or create department by name
         const deptName = departmentId.replace(/^pre-/, '').trim();
         const deptRes = await query(
           `INSERT INTO departments (tenant_id, name)
@@ -179,14 +178,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Handle manager resolution (similarly, if it's a universityId string instead of UUID)
     let finalManagerId = null;
     if (reportsToId && reportsToId.trim()) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(reportsToId);
       if (isUuid) {
         finalManagerId = reportsToId;
       } else {
-        // Try to find manager by university_id
         const mgrRes = await query(
           `SELECT id FROM employees WHERE (university_id = $1 OR employee_id = $1) AND tenant_id = $2 LIMIT 1`,
           [reportsToId, tenantId]
@@ -195,14 +192,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // 1. Transaction to Create Employee and User
-    // Generate a secure temporary password and hash it
-    const tempPassword = crypto.randomBytes(6).toString('hex'); // 12 chars
+    const tempPassword = crypto.randomBytes(6).toString('hex');
     const { hashPassword } = await import('@/lib/auth/password');
     const passwordHash = await hashPassword(tempPassword);
     
     const verificationToken = crypto.randomUUID();
-    const verificationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const verificationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const result = await query(
       `WITH new_emp AS (
@@ -231,18 +226,15 @@ export async function POST(request: Request) {
       ]
     );
 
-    // 2. Trigger Onboarding Email
     try {
       await sendOnboardingInvite(email, name, tempPassword, verificationToken);
     } catch (mailError) {
       console.warn('Onboarding email delivery failed:', mailError);
     }
 
-    // 2. Trigger Auto-Link for biometric logs
     const newEmployee = result.rows[0];
     const targetBiometricId = biometricId || employeeId;
     if (targetBiometricId) {
-      // Trigger asynchronously but don't wait to return response
       autoLinkBiometric(targetBiometricId, tenantId).catch(console.error);
     }
 
@@ -305,7 +297,6 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
 
-    // 2. Log Audit
     await logAudit({
       tenantId,
       userId: payload.userId,
@@ -340,20 +331,15 @@ export async function DELETE(request: Request) {
     
     const { tenantId } = payload;
 
-    // 1. Find employee info (need email for user deletion)
     const empRes = await query('SELECT id, email FROM employees WHERE (university_id = $1 OR employee_id = $1) AND tenant_id = $2', [id, tenantId]);
     if (empRes.rows.length === 0) return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     const emp = empRes.rows[0];
 
-    // 2. Erase related records to resolve Foreign Key constraints
     await query('DELETE FROM users WHERE (email = $1 OR employee_id = $2) AND tenant_id = $3', [emp.email, id, tenantId]);
     await query('DELETE FROM attendance WHERE employee_id = $1 AND tenant_id = $2', [emp.id, tenantId]);
     await query('DELETE FROM leave_requests WHERE employee_id = $1 AND tenant_id = $2', [emp.id, tenantId]);
-
-    // 3. Delete employee
     await query('DELETE FROM employees WHERE id = $1', [emp.id]);
 
-    // 4. Log Audit
     await logAudit({
       tenantId,
       userId: payload.userId,
@@ -370,4 +356,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }
-

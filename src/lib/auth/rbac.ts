@@ -19,27 +19,29 @@ export type Permission =
   | 'MANAGE_ATTENDANCE'
   | 'VIEW_LEAVE'
   | 'MANAGE_LEAVE'
-  | 'MANAGE_ADMINS' // Exclusive Super Admin permission
-  | 'VIEW_NON_TEACHING_DASHBOARD' // Exclusive Non-Teaching permission
-  | 'MANAGE_SUPPORT_REQUESTS';
+  | 'MANAGE_ADMINS'
+  | 'VIEW_NON_TEACHING_DASHBOARD'
+  | 'MANAGE_SUPPORT_REQUESTS'
+  | 'MANAGE_SYSTEM'
+  | 'VIEW_REPORTS';
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SUPER_ADMIN: [
     'VIEW_ALL_EMPLOYEES', 'MANAGE_EMPLOYEES', 'MANAGE_PAYROLL', 'VIEW_OWN_PAYSLIP', 
     'MANAGE_BIOMETRICS', 'MANAGE_NETWORK_SECURITY', 'MANAGE_SCHEDULING',
     'VIEW_TEAM', 'MANAGE_TEAM', 'VIEW_ATTENDANCE', 'MANAGE_ATTENDANCE', 'VIEW_LEAVE', 'MANAGE_LEAVE',
-    'MANAGE_ADMINS', 'MANAGE_SUPPORT_REQUESTS'
+    'MANAGE_ADMINS', 'MANAGE_SUPPORT_REQUESTS', 'MANAGE_SYSTEM', 'VIEW_REPORTS'
   ],
   GLOBAL_ADMIN: [
     'VIEW_ALL_EMPLOYEES', 'MANAGE_EMPLOYEES', 'VIEW_OWN_PAYSLIP',
     'MANAGE_BIOMETRICS', 'MANAGE_NETWORK_SECURITY', 'MANAGE_SCHEDULING',
     'VIEW_TEAM', 'MANAGE_TEAM', 'VIEW_ATTENDANCE', 'MANAGE_ATTENDANCE', 'VIEW_LEAVE', 'MANAGE_LEAVE',
-    'MANAGE_SUPPORT_REQUESTS'
+    'MANAGE_SUPPORT_REQUESTS', 'MANAGE_SYSTEM', 'VIEW_REPORTS', 'MANAGE_PAYROLL'
   ],
   ADMIN: [
     'VIEW_ALL_EMPLOYEES', 'MANAGE_EMPLOYEES', 'MANAGE_PAYROLL', 'VIEW_OWN_PAYSLIP', 
     'MANAGE_BIOMETRICS', 'VIEW_TEAM', 'MANAGE_TEAM', 'VIEW_ATTENDANCE', 'MANAGE_ATTENDANCE', 'VIEW_LEAVE', 'MANAGE_LEAVE',
-    'MANAGE_SUPPORT_REQUESTS'
+    'MANAGE_SUPPORT_REQUESTS', 'MANAGE_SYSTEM'
   ],
   HR_MANAGER: [
     'VIEW_ALL_EMPLOYEES', 'MANAGE_EMPLOYEES', 'MANAGE_PAYROLL', 'VIEW_OWN_PAYSLIP', 
@@ -103,7 +105,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 };
 
 export function hasPermission(role: string, permission: Permission): boolean {
-  const normalizedRole = (role || '').toUpperCase().replace(/[-\s]/g, '_') as Role;
+  if (!role || !permission) return false;
+  const normalizedRole = role.toUpperCase().replace(/[-\s]/g, '_') as Role;
   const permissions = ROLE_PERMISSIONS[normalizedRole] || [];
   return permissions.includes(permission);
 }

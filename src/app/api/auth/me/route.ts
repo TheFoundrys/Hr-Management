@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 import { NextResponse } from 'next/server';
+import { query } from '@/lib/db/postgres';
 
 export async function GET() {
   try {
@@ -16,6 +17,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
 
+    // Fetch tenant details
+    let tenantName = 'Management Compass';
+    let tenantType = 'EDUCATION';
+    if (payload.tenantId) {
+      const res = await query('SELECT name, tenant_type FROM tenants WHERE id = $1', [payload.tenantId]);
+      if (res.rows.length > 0) {
+        tenantName = res.rows[0].name;
+        tenantType = res.rows[0].tenant_type;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       user: {
@@ -24,6 +36,8 @@ export async function GET() {
         email: payload.email,
         role: payload.role,
         tenantId: payload.tenantId,
+        tenantName: tenantName,
+        tenantType: tenantType,
         employeeId: payload.employeeId,
       },
     });

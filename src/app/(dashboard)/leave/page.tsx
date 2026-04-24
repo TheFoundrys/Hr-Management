@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { CalendarOff, Plus, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { CalendarOff, Plus, Loader2, CheckCircle2, XCircle, Clock, Timer, ChevronRight, Filter, Paperclip, User } from 'lucide-react';
 import { hasPermission } from '@/lib/auth/rbac';
 
 interface LeaveBalance {
@@ -23,6 +23,12 @@ interface LeaveRequest {
   total_days: string;
   status: string;
   reason: string;
+  first_name?: string;
+  last_name?: string;
+  employee_id?: string;
+  current_level?: number;
+  attachment_url?: string;
+  substitution_employee_id?: string;
 }
 
 export default function LeavePage() {
@@ -116,7 +122,6 @@ export default function LeavePage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message || 'Action successful');
         fetchData();
       } else {
         alert(data.error || 'Action failed');
@@ -128,345 +133,179 @@ export default function LeavePage() {
 
   const getStatusLabel = (req: any) => {
     if (req.status !== 'pending') return req.status;
-    const levels: any = { 1: 'Department Head', 2: 'Manager', 3: 'HR' };
-    return `Pending (${levels[req.current_level || 1]} Approval)`;
+    const levels: any = { 1: 'HOD', 2: 'Manager', 3: 'HR' };
+    return `Pending: ${levels[req.current_level || 1]}`;
   };
 
-  const statusIcons: any = {
-    approved: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
-    rejected: <XCircle className="w-4 h-4 text-danger" />,
-    pending: <Clock className="w-4 h-4 text-amber-500" />,
-  };
+  const canManageLeave = hasPermission(user?.role || '', 'MANAGE_LEAVE');
 
-    const canManageLeave = hasPermission(user?.role || '', 'MANAGE_LEAVE');
+  return (
+    <div className="max-w-6xl mx-auto py-6 px-6 space-y-8 animate-in fade-in duration-500">
+      {/* Premium Header */}
+      <header className="flex items-center justify-between gap-6 border-b border-border pb-6">
+        <div>
+          <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
+            <CalendarOff size={28} className="text-primary" /> Leaves
+          </h1>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em] mt-2 pl-1">
+            Institutional Absence Ledger • {new Date().getFullYear()} Session
+          </p>
+        </div>
 
-    return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-          <CalendarOff className="w-7 h-7 text-primary" /> Leave Management
-        </h1>
-        {!canManageLeave && (
-          <button 
-            onClick={() => setShowApplyModal(true)}
-            className="bg-primary px-4 py-2 rounded-xl text-primary-foreground text-sm font-bold flex items-center gap-2 shadow-soft hover:scale-[1.02] transition-all"
-          >
-            <Plus className="w-4 h-4" /> Apply Leave
-          </button>
-        )}
-      </div>
+        <div className="flex gap-3">
+          {!canManageLeave && (
+            <button 
+              onClick={() => setShowApplyModal(true)}
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-primary/10 flex items-center gap-2"
+            >
+              <Plus size={16} strokeWidth={3} /> Apply Leave
+            </button>
+          )}
+        </div>
+      </header>
 
-      {/* Leave Balance Dashboard */}
+      {/* Balance Cards - Compact Grid */}
       {!canManageLeave && (
-        <div className="bg-card/50 border border-border rounded-[2.5rem] p-8 shadow-xl backdrop-blur-md">
-          <div className="flex items-center gap-4 mb-10">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-primary" />
-            </div>
-            <h2 className="text-xl font-black text-foreground tracking-tight uppercase">Your Leave Balance</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {balances.map((bal, idx) => {
-              const isUnpaid = bal.type_code === 'UL';
-              const total = Number(bal.allocated_days) || 1;
-              const remaining = Number(bal.remaining_days);
-              const percentage = isUnpaid ? 100 : (remaining / total) * 100;
-              const color = bal.color || '#2563eb';
-
-              return (
-                <div key={idx} className="bg-[#151921] border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group hover:border-primary/20 transition-all">
-                  <div className="flex justify-between items-start mb-6">
-                    <p className="text-[10px] font-black text-[#8E9AAF] uppercase tracking-widest">{bal.type_name}</p>
-                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">View details</button>
-                  </div>
-
-                  {/* Circular Progress */}
-                  <div className="relative w-32 h-32 mx-auto mb-8">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle
-                        cx="64" cy="64" r="58"
-                        stroke="rgba(255,255,255,0.05)"
-                        strokeWidth="8"
-                        fill="transparent"
-                      />
-                      <circle
-                        cx="64" cy="64" r="58"
-                        stroke={color}
-                        strokeWidth="8"
-                        fill="transparent"
-                        strokeDasharray={364.4}
-                        strokeDashoffset={364.4 - (364.4 * percentage) / 100}
-                        strokeLinecap="round"
-                        className="transition-all duration-1000 ease-out"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-2xl font-black text-white leading-none">
-                        {isUnpaid ? '∞' : remaining}
-                      </span>
-                      <span className="text-[8px] font-black text-[#8E9AAF] uppercase tracking-widest mt-1">
-                        {isUnpaid ? 'Unlimited Access' : 'Days Available'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Details Grid */}
-                  <div className="grid grid-cols-2 gap-y-4 pt-4 border-t border-white/5">
-                    <div>
-                      <p className="text-[8px] font-black text-[#8E9AAF] uppercase tracking-widest mb-1">
-                        {isUnpaid ? 'Type' : 'Available'}
-                      </p>
-                      <p className="text-sm font-bold text-white">
-                        {isUnpaid ? 'Unpaid (LOP)' : `${remaining} days`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[8px] font-black text-[#8E9AAF] uppercase tracking-widest mb-1">Consumed</p>
-                      <p className="text-sm font-bold text-white">{Number(bal.used_days)} day</p>
-                    </div>
-                    <div>
-                      <p className="text-[8px] font-black text-[#8E9AAF] uppercase tracking-widest mb-1">
-                         {isUnpaid ? 'Status' : 'Accrued so far'}
-                      </p>
-                      <p className="text-sm font-bold text-white">
-                        {isUnpaid ? 'Unlimited' : `${Number(bal.accrued_so_far)} day`}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[8px] font-black text-[#8E9AAF] uppercase tracking-widest mb-1">Annual Quota</p>
-                      <p className="text-sm font-bold text-white">{isUnpaid ? 'Unlimited' : `${Number(bal.allocated_days)} days`}</p>
-                    </div>
-                  </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {balances.map((bal, idx) => (
+            <div key={idx} className="bg-card border border-border p-5 rounded-2xl shadow-sm hover:border-primary/30 transition-all group">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">{bal.type_name}</p>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-3xl font-black text-foreground leading-none">
+                    {bal.type_code === 'UL' ? '∞' : bal.remaining_days}
+                  </p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase mt-2">Days Left</p>
                 </div>
-              );
-            })}
-          </div>
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                  <CheckCircle2 size={18} />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Approvals Section for Admins and Managers */}
-      {canManageLeave && (
-        <div className="bg-card rounded-2xl overflow-hidden mb-8 border border-border shadow-soft">
-          <div className="p-6 border-b border-border bg-primary/5">
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-primary" /> Pending Approvals
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Review and validate leave requests accordingly.</p>
-          </div>
+      {/* Main Request Stream */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+           <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+             <Clock size={14} /> {canManageLeave ? 'Pending Approvals' : 'Recent Activity'}
+           </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
           <div className="divide-y divide-border">
-            {requests.filter(r => r.status === 'pending').map((req: any) => (
-              <div key={req.id} className="p-6 hover:bg-muted/30 transition-all group">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 font-bold">
-                        <span>{req.first_name[0]}{req.last_name[0]}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-foreground">{req.first_name} {req.last_name}</p>
-                        <p className="text-[10px] text-primary font-mono uppercase tracking-wider">{req.employee_id} • {req.type_name}</p>
-                      </div>
+            {loading ? (
+              <div className="py-20 flex justify-center"><Loader2 size={24} className="animate-spin text-primary" /></div>
+            ) : requests.length ? requests.map((req) => (
+              <div key={req.id} className="flex flex-col lg:flex-row items-center justify-between p-3 hover:bg-muted/30 transition-colors group gap-6">
+                <div className="flex items-center gap-8 flex-1 w-full">
+                  {/* Status Indicator */}
+                  <div className="w-12 text-center shrink-0">
+                    <div className={`mx-auto w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      req.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' : 
+                      req.status === 'rejected' ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500'
+                    }`}>
+                      {req.status === 'approved' ? <CheckCircle2 size={20} /> : req.status === 'rejected' ? <XCircle size={20} /> : <Clock size={20} />}
                     </div>
-                    <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none">
-                      <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {new Date(req.start_date).toLocaleDateString()} - {new Date(req.end_date).toLocaleDateString()} ({Number(req.total_days)} Days)</p>
-                      {req.substitution_employee_id && <p className="text-primary font-black uppercase">Cover: {req.substitution_employee_id}</p>}
-                      <p className={`px-2 py-0.5 rounded-md bg-muted border border-border ${req.current_level === 1 ? 'text-amber-600' : req.current_level === 2 ? 'text-indigo-600' : 'text-blue-600'}`}>
-                        Reviewing: {req.current_level === 1 ? 'Department Head' : req.current_level === 2 ? 'Manager' : 'HR'}
+                  </div>
+
+                  <div className="h-10 w-[1px] bg-border hidden lg:block" />
+
+                  {/* Info Grid */}
+                  <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-8 items-center w-full">
+                    <div className="col-span-2 lg:col-span-1">
+                      <p className="text-sm font-black text-foreground tracking-tight">{req.type_name}</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
+                        {canManageLeave ? `${req.first_name} ${req.last_name}` : `ID: ${req.id.slice(0, 8)}`}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground bg-muted p-3 rounded-xl border border-border italic">"{req.reason}"</p>
-                    {req.attachment_url && (
-                      <a href={req.attachment_url} target="_blank" className="inline-flex items-center gap-2 text-[10px] text-primary hover:underline transition-all uppercase font-black tracking-widest">
-                        View Document →
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button 
-                      onClick={() => handleAction(req.id, 'rejected')}
-                      className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-danger hover:bg-danger/10 border border-danger/20 transition-all"
-                    >
-                      Reject
-                    </button>
-                    <button 
-                      onClick={() => handleAction(req.id, 'approved')}
-                      className="px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary-foreground bg-primary hover:bg-primary/90 shadow-soft shadow-primary/20 transition-all"
-                    >
-                      {req.current_level < 3 ? `Validate (Level ${req.current_level})` : 'Final Appprove (HR)'}
-                    </button>
+
+                    <div>
+                      <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mb-1 opacity-60">Period</p>
+                      <p className="text-xs font-bold text-foreground">
+                        {new Date(req.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - {new Date(req.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+
+                    <div className="hidden lg:block">
+                      <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mb-1 opacity-60">Duration</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-foreground">{Number(req.total_days)} Days</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col">
+                       <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mb-1 opacity-60">Reason</p>
+                       <p className="text-xs font-medium text-muted-foreground truncate max-w-[120px] italic">"{req.reason}"</p>
+                    </div>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-4 w-full lg:w-auto justify-end">
+                  {canManageLeave && req.status === 'pending' ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleAction(req.id, 'rejected')} className="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all">Reject</button>
+                      <button onClick={() => handleAction(req.id, 'approved')} className="px-4 py-2 rounded-xl text-[10px] font-black uppercase bg-primary text-primary-foreground hover:opacity-90 transition-all">Approve</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                        req.status === 'approved' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
+                        req.status === 'rejected' ? 'text-rose-500 bg-rose-500/10 border-rose-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+                      }`}>
+                        {getStatusLabel(req)}
+                      </span>
+                      {req.attachment_url && <a href={req.attachment_url} className="p-2 text-muted-foreground hover:text-primary"><Paperclip size={16} /></a>}
+                    </div>
+                  )}
+                  <ChevronRight size={18} className="text-border group-hover:text-primary group-hover:translate-x-1 transition-all hidden lg:block" />
+                </div>
               </div>
-            ))}
-            {requests.filter(r => r.status === 'pending').length === 0 && (
-              <div className="py-12 text-center text-muted-foreground/40 italic text-sm">No pending approvals at this time</div>
+            )) : (
+              <div className="py-24 text-center">
+                <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em]">No Leave Records Found</p>
+              </div>
             )}
           </div>
         </div>
-      )}
-
-      {/* History */}
-      <div className="bg-card rounded-2xl overflow-hidden min-h-[300px] border border-border shadow-soft">
-        <div className="p-6 border-b border-border bg-muted/30">
-           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-             {user?.role?.toLowerCase() === 'admin' ? 'Recent Leave History' : 'Your Leave History'}
-           </h2>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  {user?.role?.toLowerCase() === 'admin' && <th className="py-4 px-6">Employee</th>}
-                  <th className="py-4 px-6">Leave Type</th>
-                  <th className="py-4 px-6">Period</th>
-                  <th className="py-4 px-6 text-center">Days</th>
-                  <th className="py-4 px-6">Reason</th>
-                  <th className="py-4 px-6">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border text-foreground">
-                {requests.map((req: any) => (
-                  <tr key={req.id} className="hover:bg-muted/30 transition-colors">
-                    {user?.role?.toLowerCase() === 'admin' && (
-                      <td className="py-4 px-6">
-                        <p className="text-sm text-foreground font-bold">{req.first_name} {req.last_name}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono uppercase">{req.employee_id}</p>
-                      </td>
-                    )}
-                    <td className="py-4 px-6 text-sm font-bold">{req.type_name}</td>
-                    <td className="py-4 px-6 text-xs text-muted-foreground">
-                      {new Date(req.start_date).toLocaleDateString()} - {new Date(req.end_date).toLocaleDateString()}
-                    </td>
-                    <td className="py-4 px-6 text-sm font-black text-center">{Number(req.total_days)}</td>
-                    <td className="py-4 px-6 text-xs text-muted-foreground italic truncate max-w-[150px]">
-                       {req.reason}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        {statusIcons[req.status] || statusIcons['pending']}
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${
-                          req.status === 'approved' ? 'text-emerald-500' : 
-                          req.status === 'rejected' ? 'text-danger' : 'text-amber-500'
-                        }`}>
-                          {getStatusLabel(req)}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       {/* Apply Modal */}
       {showApplyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md animate-slide-up shadow-2xl">
-            <h2 className="text-xl font-black text-foreground uppercase tracking-tight mb-8">Apply for Leave</h2>
-            <form onSubmit={handleApply} className="space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-card rounded-[2rem] p-8 w-full max-w-md shadow-2xl space-y-6 border border-border">
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Apply Leave</h2>
+            
+            <form onSubmit={handleApply} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Leave Type</label>
-                <select 
-                  required
-                  value={formData.leaveTypeId}
-                  onChange={e => setFormData({...formData, leaveTypeId: e.target.value})}
-                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground focus:border-primary outline-none transition-all cursor-pointer"
-                >
-                  <option value="">Select Category</option>
-                  {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                <select required value={formData.leaveTypeId} onChange={e => setFormData({...formData, leaveTypeId: e.target.value})} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm font-bold outline-none focus:border-primary transition-all text-foreground">
+                  <option value="" className="bg-card">Select Category</option>
+                  {leaveTypes.map(t => <option key={t.id} value={t.id} className="bg-card">{t.name}</option>)}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start Date</label>
-                  <input 
-                    type="date" required 
-                    value={formData.startDate}
-                    onChange={e => setFormData({...formData, startDate: e.target.value})}
-                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground focus:border-primary outline-none transition-all" 
-                  />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">From</label>
+                  <input type="date" required value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm font-bold outline-none focus:border-primary text-foreground" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">End Date</label>
-                  <input 
-                    type="date" required 
-                    value={formData.endDate}
-                    onChange={e => setFormData({...formData, endDate: e.target.value})}
-                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground focus:border-primary outline-none transition-all" 
-                  />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">To</label>
+                  <input type="date" required value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm font-bold outline-none focus:border-primary text-foreground" />
                 </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-xl border border-border transition-all">
-                <input 
-                  type="checkbox" 
-                  checked={formData.isHalfDay}
-                  onChange={e => setFormData({...formData, isHalfDay: e.target.checked})}
-                  className="w-4 h-4 rounded border-border bg-card text-primary cursor-pointer" 
-                />
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Half Day Configuration</span>
-              </div>
-
-              {formData.isHalfDay && (
-                <div className="space-y-2">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Session</label>
-                   <select 
-                    value={formData.halfDayType}
-                    onChange={e => setFormData({...formData, halfDayType: e.target.value})}
-                    className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground focus:border-primary outline-none"
-                   >
-                     <option value="morning">Morning Shift</option>
-                     <option value="afternoon">Afternoon Shift</option>
-                   </select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Required Substitution</label>
-                <select 
-                  value={formData.substitutionEmployeeId}
-                  onChange={e => setFormData({...formData, substitutionEmployeeId: e.target.value})}
-                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground focus:border-primary outline-none cursor-pointer"
-                >
-                  <option value="">Select Alternate</option>
-                   {employees.filter(e => e.employeeId !== user?.employeeId).map(e => (
-                     <option key={e.employeeId} value={e.employeeId}>{e.name} ({e.department})</option>
-                   ))}
-                </select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Application Reason</label>
-                <textarea 
-                  rows={2} required
-                  value={formData.reason}
-                  onChange={e => setFormData({...formData, reason: e.target.value})}
-                  className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground focus:border-primary outline-none transition-all" 
-                />
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Reason for Absence</label>
+                <textarea rows={3} required value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm font-medium outline-none focus:border-primary text-foreground" />
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" onClick={() => setShowApplyModal(false)}
-                  className="flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted border border-border transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3.5 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
-                >
-                  Submit Request
-                </button>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowApplyModal(false)} className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted rounded-2xl transition-all">Cancel</button>
+                <button type="submit" className="flex-1 py-4 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/10 hover:opacity-90 transition-all">Submit Request</button>
               </div>
             </form>
           </div>

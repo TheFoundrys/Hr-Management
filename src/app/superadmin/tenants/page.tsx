@@ -52,7 +52,7 @@ export default function TenantsPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTenant) return;
-    
+
     setIsUpdating(true);
     try {
       const res = await fetch(`/api/superadmin/tenants/${editingTenant.id}`, {
@@ -63,7 +63,7 @@ export default function TenantsPage() {
           tenantType: editingTenant.tenant_type
         }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setTenants(tenants.map(t => t.id === editingTenant.id ? data.tenant : t));
@@ -76,8 +76,8 @@ export default function TenantsPage() {
     }
   };
 
-  const filteredTenants = tenants.filter(t => 
-    t.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredTenants = tenants.filter(t =>
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
     t.subdomain.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -88,8 +88,8 @@ export default function TenantsPage() {
           <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Multi-Tenant Management</h1>
           <p className="text-muted-foreground mt-1">Manage company isolation and administrative access.</p>
         </div>
-        <Link 
-          href="/superadmin/tenants/create" 
+        <Link
+          href="/superadmin/tenants/create"
           className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-bold hover:shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5"
         >
           <Plus className="w-5 h-5" />
@@ -98,35 +98,35 @@ export default function TenantsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-         <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-            <p className="text-sm text-muted-foreground font-semibold">Total Tenants</p>
-            <p className="text-3xl font-black mt-1">{tenants.length}</p>
-         </div>
-         <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-            <p className="text-sm text-muted-foreground font-semibold">System Capacity</p>
-            <p className="text-3xl font-black mt-1">Unlimited</p>
-         </div>
-         <div className="bg-card p-5 rounded-2xl border border-border shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Globe className="w-12 h-12" />
-            </div>
-            <p className="text-sm text-muted-foreground font-semibold">System Status</p>
-            <p className="text-3xl font-black mt-1 text-emerald-500">Operational</p>
-         </div>
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+          <p className="text-sm text-muted-foreground font-semibold">Total Tenants</p>
+          <p className="text-3xl font-black mt-1">{tenants.length}</p>
+        </div>
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+          <p className="text-sm text-muted-foreground font-semibold">System Capacity</p>
+          <p className="text-3xl font-black mt-1">Unlimited</p>
+        </div>
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Globe className="w-12 h-12" />
+          </div>
+          <p className="text-sm text-muted-foreground font-semibold">System Status</p>
+          <p className="text-3xl font-black mt-1 text-emerald-500">Active</p>
+        </div>
       </div>
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
         <div className="p-4 border-b border-border bg-muted/30 flex items-center gap-3">
           <Search className="w-4 h-4 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search tenants by name or subdomain..." 
+          <input
+            type="text"
+            placeholder="Search tenants by name or subdomain..."
             className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground/60"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -153,17 +153,15 @@ export default function TenantsPage() {
                 <tr key={tenant.id} className="hover:bg-muted/30 transition-colors group">
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        tenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500/10 text-indigo-600' : 'bg-emerald-500/10 text-emerald-600'
-                      }`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500/10 text-indigo-600' : 'bg-emerald-500/10 text-emerald-600'
+                        }`}>
                         {tenant.tenant_type === 'EDUCATION' ? <Sparkles className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-foreground">{tenant.name}</p>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter ${
-                            tenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500/10 text-indigo-600' : 'bg-emerald-500/10 text-emerald-600'
-                          }`}>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter ${tenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500/10 text-indigo-600' : 'bg-emerald-500/10 text-emerald-600'
+                            }`}>
                             {tenant.tenant_type}
                           </span>
                         </div>
@@ -179,13 +177,13 @@ export default function TenantsPage() {
                   </td>
                   <td className="px-6 py-5 text-right">
                     <div className="flex items-center justify-end gap-2">
-                       <button 
+                      <button
                         onClick={() => setEditingTenant(tenant)}
                         className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-all"
-                       >
+                      >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => deleteTenant(tenant.id)}
                         className="p-2 hover:bg-danger/10 rounded-lg text-muted-foreground hover:text-danger transition-all opacity-0 group-hover:opacity-100"
                       >
@@ -223,18 +221,16 @@ export default function TenantsPage() {
                   <button
                     type="button"
                     onClick={() => setEditingTenant({ ...editingTenant, tenant_type: 'EDUCATION' })}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
-                      editingTenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500 text-white' : 'bg-muted text-muted-foreground'
-                    }`}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${editingTenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500 text-white' : 'bg-muted text-muted-foreground'
+                      }`}
                   >
                     Education
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditingTenant({ ...editingTenant, tenant_type: 'COMPANY' })}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
-                      editingTenant.tenant_type === 'COMPANY' ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'
-                    }`}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${editingTenant.tenant_type === 'COMPANY' ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'
+                      }`}
                   >
                     Company
                   </button>

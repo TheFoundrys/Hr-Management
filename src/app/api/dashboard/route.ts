@@ -6,12 +6,53 @@ import { hasPermission } from '@/lib/auth/rbac';
 export async function GET(request: Request) {
   try {
     const tenantId = await getTenantId(request);
-    const userRole = request.headers.get('x-user-role') || 'teaching';
+    // Normalize role and handle 'global_admin' as a SUPER_ADMIN equivalent
+    let userRole = (request.headers.get('x-user-role') || 'staff').toUpperCase().replace(/-/g, '_');
+    if (userRole === 'GLOBAL_ADMIN') userRole = 'SUPER_ADMIN'; 
+    
     const userId = request.headers.get('x-user-id') || '';
 
     const today = new Date().toISOString().split('T')[0];
     const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
+    // --- PLATFORM ADMIN DASHBOARD (Super Admin / Global Admin) ---
+    if (userRole === 'SUPER_ADMIN') {
+      const [
+        tenantsResult,
+        totalEmployeesResult,
+        recentTenantsResult,
+        attendanceTodayResult
+      ] = await Promise.all([
+        query('SELECT COUNT(*) FROM tenants'),
+        query('SELECT COUNT(*) FROM employees'),
+        query('SELECT name, tenant_type, created_at FROM tenants ORDER BY created_at DESC LIMIT 5'),
+        query('SELECT COUNT(*) FROM attendance WHERE date = $1', [today])
+      ]);
+
+      const totalTenants = parseInt(tenantsResult.rows[0].count);
+
+      // Growth trend mock (based on real total)
+      const tenantGrowth = [
+        { name: 'Apr', count: totalTenants }
+      ];
+
+      return NextResponse.json({
+        success: true,
+        dashboard: {
+          isSuperAdmin: true,
+          stats: {
+            totalTenants: totalTenants,
+            totalGlobalEmployees: parseInt(totalEmployeesResult.rows[0].count),
+            globalAttendanceToday: parseInt(attendanceTodayResult.rows[0].count),
+            systemUptime: '99.9%'
+          },
+          tenantGrowth,
+          recentTenants: recentTenantsResult.rows
+        }
+      });
+    }
+
+    // --- TENANT ADMIN / HR DASHBOARD ---
     if (hasPermission(userRole, 'VIEW_ALL_EMPLOYEES')) {
       const [
         empCountResult,
@@ -85,7 +126,7 @@ export async function GET(request: Request) {
           })),
           recentLeaves: recentLeaves.map(l => ({ 
             ...l, 
-            employeeId: l.university_id, // Use bridge ID for frontend
+            employeeId: l.university_id, 
             leaveType: (l.type_name || 'General'),
             status: (l.status || 'pending').toLowerCase()
           })),
@@ -93,7 +134,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // Employee dashboard
+    // --- EMPLOYEE DASHBOARD ---
     const userResult = await query('SELECT employee_id FROM users WHERE id = $1', [userId]);
     const empIdStr = userResult.rows[0]?.employee_id;
 
@@ -101,7 +142,6 @@ export async function GET(request: Request) {
        return NextResponse.json({ success: true, dashboard: { stats: { presentDays: 0, absentDays: 0, lateDays: 0, leaveDays: 0, pendingLeaves: 0 }, attendance: [], leaves: [] } });
     }
 
-    // Get employee details using the bridge ID
     const empResult = await query('SELECT * FROM employees WHERE tenant_id = $1 AND employee_id = $2 LIMIT 1', [tenantId, empIdStr]);
     const employee = empResult.rows[0];
 
