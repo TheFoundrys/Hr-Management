@@ -81,6 +81,8 @@ export async function GET(
     // Map to camelCase for frontend
     const mappedEmployee = {
       ...employee,
+      name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
+      status: employee.is_active ? 'active' : 'inactive',
       universityId: employee.university_id,
       firstName: employee.first_name,
       lastName: employee.last_name,
@@ -172,4 +174,41 @@ export async function PUT(
     return NextResponse.json({ error: 'Failed to update employee' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const payload = await verifyToken(token);
+    if (!payload || !hasPermission(payload.role, 'MANAGE_EMPLOYEES')) {
+      return NextResponse.json({ error: 'Forbidden. Elevated privileges required.' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const { tenantId } = payload;
+
+    // Supports finding by UUID OR university_id
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
+    const result = await query(
+      `DELETE FROM employees WHERE ${isUuid ? 'id = $1' : 'university_id = $1'} AND tenant_id = $2 RETURNING id`,
+      [id, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Employee removed successfully' });
+  } catch (error) {
+    console.error('Delete employee error:', error);
+    return NextResponse.json({ error: 'Failed to delete employee' }, { status: 500 });
+  }
+}
+
 

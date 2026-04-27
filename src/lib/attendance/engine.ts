@@ -74,13 +74,16 @@ export async function processAttendance(tenantId: string, dateStr: string) {
          CASE WHEN first_punch = last_punch THEN NULL ELSE last_punch END, 
          ROUND(EXTRACT(EPOCH FROM (last_punch - first_punch)) / 3600, 2),
          'biometric',
-         'PRESENT'
+         CASE 
+           WHEN first_punch::TIME > '10:00:00'::TIME THEN 'LATE'
+           ELSE 'PRESENT'
+         END
        FROM daily_punches
        ON CONFLICT (employee_id, tenant_id, date) DO UPDATE SET
          check_in = EXCLUDED.check_in,
          check_out = EXCLUDED.check_out,
          working_hours = EXCLUDED.working_hours,
-         status = 'PRESENT',
+         status = EXCLUDED.status,
          updated_at = NOW()
        RETURNING employee_id`,
       [tenantId, dateStr]

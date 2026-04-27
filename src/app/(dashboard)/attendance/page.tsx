@@ -87,7 +87,7 @@ export default function AttendancePage() {
       {/* Structured Stat Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Present', id: 'PRESENT', color: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/10' },
+          { label: 'Ontime', id: 'PRESENT', color: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/10' },
           { label: 'Late', id: 'LATE', color: 'text-amber-500 bg-amber-500/5 border-amber-500/10' },
           { label: 'Absent', id: 'ABSENT', color: 'text-rose-500 bg-rose-500/5 border-rose-500/10' },
           { label: 'On Leave', id: 'ON_LEAVE', color: 'text-primary bg-primary/5 border-primary/10' }
@@ -111,7 +111,7 @@ export default function AttendancePage() {
           )}
           <select value={status} onChange={e => setStatus(e.target.value)} className="bg-transparent text-xs font-bold uppercase tracking-widest outline-none border-b-2 border-border focus:border-primary pb-1 cursor-pointer text-foreground">
             <option value="" className="bg-card">All Statuses</option>
-            {['Present', 'Absent', 'Late'].map(s => <option key={s} value={s.toLowerCase()} className="bg-card">{s}</option>)}
+            {['Ontime', 'Absent', 'Late'].map(s => <option key={s} value={s.toLowerCase() === 'ontime' ? 'present' : s.toLowerCase()} className="bg-card">{s}</option>)}
           </select>
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function AttendancePage() {
                       {isAdmin ? (r.firstName?.[0] || 'U') : <User size={20} />}
                     </div>
                     <div className="truncate">
-                      <p className="text-sm font-black text-foreground tracking-tight truncate">{isAdmin ? `${r.firstName} ${r.lastName}` : 'Standard Shift Log'}</p>
+                      <p className="text-sm font-black text-foreground tracking-tight truncate">{isAdmin ? `${r.firstName} ${r.lastName}` : 'Attendance Record'}</p>
                       <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.1em] mt-0.5">{r.employeeId || 'SYS-ID'}</p>
                     </div>
                   </div>
@@ -162,7 +162,7 @@ export default function AttendancePage() {
                         r.status?.toLowerCase() === 'present' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
                         r.status?.toLowerCase() === 'late' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 'text-rose-500 bg-rose-500/10 border-rose-500/20'
                       }`}>
-                        {r.status}
+                  {r.status?.toUpperCase() === 'PRESENT' ? 'ONTIME' : r.status}
                       </span>
                     </div>
                   </div>
@@ -174,7 +174,7 @@ export default function AttendancePage() {
                   r.status?.toLowerCase() === 'present' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-500' : 
                   r.status?.toLowerCase() === 'late' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-50 group-hover:text-amber-600 group-hover:border-amber-600' : 'text-rose-500 bg-rose-500/10 border-rose-500/20 group-hover:bg-rose-500 group-hover:text-white group-hover:border-rose-500'
                 }`}>
-                  {r.status}
+                  {r.status?.toUpperCase() === 'PRESENT' ? 'ONTIME' : r.status}
                 </span>
                 <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </div>

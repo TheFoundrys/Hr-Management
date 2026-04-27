@@ -9,7 +9,7 @@ export default function AdminDashboard({ data }: { data: any }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           { label: 'Total Staff', value: stats.totalEmployees, icon: Users, color: 'primary' },
-          { label: 'Present Today', value: stats.presentToday, icon: UserCheck, color: 'emerald-500' },
+          { label: 'Ontime Today', value: stats.presentToday, icon: UserCheck, color: 'emerald-500' },
           { label: 'Pending Leaves', value: stats.pendingLeaves, icon: CalendarOff, color: 'amber-500' }
         ].map((s, i) => (
           <div key={i} className="bg-card border border-border p-6 rounded-2xl flex items-center gap-5 shadow-soft hover:-translate-y-1 transition-all duration-300">

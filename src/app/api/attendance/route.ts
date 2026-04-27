@@ -32,59 +32,91 @@ export async function GET(request: Request) {
       employeeId = payload.employeeId;
     }
 
-    // Join with employees and tenant_users to get hardware mapping
-    let queryString = `
-      SELECT a.*, e.university_id, e.first_name, e.last_name, tu.device_user_id 
-      FROM attendance a 
-      JOIN employees e ON a.employee_id = e.id 
-      LEFT JOIN tenant_users tu ON e.user_id = tu.user_id
-      WHERE e.tenant_id = $1
-    `;
+    // BASE QUERY: Start from employees to ensure we catch "ABSENT" users
+    // We only do this "Complete List" view if a specific date is requested.
+    // For month/year views, we stick to existing records to avoid massive cross-joins.
+    
+    let queryString = "";
     const params: unknown[] = [tenantId];
     let paramIndex = 2;
 
-    if (employeeId) {
-      queryString += ` AND e.employee_id = $${paramIndex++}`;
-      params.push(employeeId);
-    }
-    if (status) {
-      queryString += ` AND a.status = $${paramIndex++}`;
-      params.push(status.toUpperCase());
-    }
-
     if (date) {
-      queryString += ` AND a.date = $${paramIndex++}::DATE`;
+      queryString = `
+        SELECT 
+          e.id as employee_internal_id, e.university_id, e.first_name, e.last_name, e.employee_id,
+          a.id, a.date, a.check_in, a.check_out, a.status, a.working_hours, a.source,
+          tu.device_user_id
+        FROM employees e
+        LEFT JOIN attendance a ON e.id = a.employee_id AND a.date = $2
+        LEFT JOIN tenant_users tu ON e.user_id = tu.user_id
+        WHERE e.tenant_id = $1
+      `;
       params.push(date);
-    } else if (month && year) {
-      queryString += ` AND EXTRACT(MONTH FROM a.date) = $${paramIndex++} AND EXTRACT(YEAR FROM a.date) = $${paramIndex++}`;
-      params.push(parseInt(month), parseInt(year));
+      paramIndex = 3;
+
+      if (employeeId) {
+        queryString += ` AND e.employee_id = $${paramIndex++}`;
+        params.push(employeeId);
+      }
+
+      if (status) {
+        if (status.toUpperCase() === 'ABSENT') {
+          queryString += ` AND (a.status IS NULL OR a.status = 'ABSENT')`;
+        } else {
+          queryString += ` AND a.status = $${paramIndex++}`;
+          params.push(status.toUpperCase());
+        }
+      }
+    } else {
+      // Month/Year view or General search - focus on actual records
+      queryString = `
+        SELECT a.*, e.university_id, e.first_name, e.last_name, tu.device_user_id 
+        FROM attendance a 
+        JOIN employees e ON a.employee_id = e.id 
+        LEFT JOIN tenant_users tu ON e.user_id = tu.user_id
+        WHERE e.tenant_id = $1
+      `;
+      
+      if (employeeId) {
+        queryString += ` AND e.employee_id = $${paramIndex++}`;
+        params.push(employeeId);
+      }
+      if (status) {
+        queryString += ` AND a.status = $${paramIndex++}`;
+        params.push(status.toUpperCase());
+      }
+      if (month && year) {
+        queryString += ` AND EXTRACT(MONTH FROM a.date) = $${paramIndex++} AND EXTRACT(YEAR FROM a.date) = $${paramIndex++}`;
+        params.push(parseInt(month), parseInt(year));
+      }
     }
 
-    queryString += ' ORDER BY a.date DESC, a.employee_id ASC';
+    queryString += ' ORDER BY e.first_name ASC';
     const result = await query(queryString, params);
 
     // Map result columns to frontend-expected camelCase
     const attendance = result.rows.map(row => ({
       ...row,
+      date: row.date || date, // Use filter date if record is "virtual" absence
       employeeId: row.university_id || row.employee_id, // Use human readable ID if available
       deviceUserId: row.device_user_id || row.university_id || '—',
       internalId: row.id,
       firstName: row.first_name,
       lastName: row.last_name,
-      status: (row.status || 'absent').toLowerCase(),
+      status: (row.status || 'ABSENT').toLowerCase(),
       checkIn: row.check_in,
       checkOut: row.check_out,
       workingHours: (() => {
         if (row.check_in && row.check_out) {
           return Math.round((new Date(row.check_out).getTime() - new Date(row.check_in).getTime()) / (1000 * 60 * 60) * 100) / 100;
         }
-        if (row.check_in && !row.check_out && new Date(row.date).toDateString() === new Date().toDateString()) {
+        if (row.check_in && !row.check_out && new Date(row.date || date).toDateString() === new Date().toDateString()) {
            // Live counter for today only
            return Math.round((new Date().getTime() - new Date(row.check_in).getTime()) / (1000 * 60 * 60) * 100) / 100;
         }
         return Number(row.working_hours || 0);
       })(),
-      source: row.source
+      source: row.source || 'system'
     }));
 
     return NextResponse.json({ success: true, attendance });

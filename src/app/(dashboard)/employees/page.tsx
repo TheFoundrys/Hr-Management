@@ -168,10 +168,10 @@ export default function EmployeesPage() {
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-4">
                        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-primary text-sm group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
-                          {emp.name[0]}
+                          {emp.name?.[0] || '?'}
                        </div>
                        <div>
-                          <p className="text-sm font-black text-foreground tracking-tight">{emp.name}</p>
+                          <p className="text-sm font-black text-foreground tracking-tight">{emp.name || 'Unknown'}</p>
                           <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">{emp.employee_id}</p>
                        </div>
                     </div>
@@ -197,7 +197,23 @@ export default function EmployeesPage() {
                       {emp.status}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-right">
+                  <td className="px-6 py-5 text-right space-x-2">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Delete this employee?')) {
+                          fetch(`/api/employees/${emp.id}`, { method: 'DELETE' })
+                            .then(res => res.json())
+                            .then(data => {
+                              if (data.success) fetchData();
+                              else alert(data.error);
+                            });
+                        }
+                      }}
+                      className="p-2.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-all inline-block"
+                    >
+                       <Trash2 size={18} />
+                    </button>
                     <Link href={`/employees/${emp.id}`} className="p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl transition-all inline-block">
                        <ChevronRight size={18} />
                     </Link>

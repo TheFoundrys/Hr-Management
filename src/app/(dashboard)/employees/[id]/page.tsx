@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useState, use } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { User, Mail, Briefcase, Building, Edit2, Download, ArrowLeft, Loader2, Calendar, Shield, CreditCard, Clock, Globe, Printer } from 'lucide-react';
+import { User, Mail, Briefcase, Building, Edit2, Download, ArrowLeft, Loader2, Calendar, Shield, CreditCard, Clock, Globe, Printer, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { jsPDF } from 'jspdf';
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const { user: currentUser } = useAuthStore();
   const [employee, setEmployee] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,23 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     doc.save(`${employee.employee_id}_ID_Card.pdf`);
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you absolutely sure you want to remove this professional record? This action cannot be undone.')) return;
+    
+    try {
+      const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        router.push('/employees');
+      } else {
+        alert(data.error || 'Failed to remove record');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred during removal');
+    }
+  };
+
   if (loading) return <div className="h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin text-primary" size={40} /></div>;
   if (!employee) return <div className="text-center py-20 text-muted-foreground">Professional record not found.</div>;
 
@@ -81,6 +100,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           <button onClick={generateIDCard} className="flex items-center gap-2 bg-muted border border-border text-foreground px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-card transition-all shadow-sm">
             <Printer size={16} /> ID Card
           </button>
+          <button 
+            onClick={handleDelete}
+            className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+          >
+            <Trash2 size={16} /> Delete
+          </button>
           <Link href={`/employees/${id}/edit`} className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
             <Edit2 size={16} /> Edit Profile
           </Link>
@@ -95,11 +120,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <Globe size={120} />
              </div>
              <div className="w-32 h-32 bg-primary/10 rounded-[2.5rem] mx-auto flex items-center justify-center text-5xl font-black text-primary shadow-inner">
-                {employee.name[0]}
+                {employee?.name?.[0] || '?'}
              </div>
              <div>
-                <p className="font-black text-foreground text-2xl tracking-tight">{employee.name}</p>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1.5">{employee.employee_id}</p>
+                <p className="font-black text-foreground text-2xl tracking-tight">{employee?.name || 'Unknown'}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1.5">{employee?.employee_id || 'ID-PENDING'}</p>
              </div>
              <div className="flex items-center justify-center gap-2">
                 <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${

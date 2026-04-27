@@ -73,11 +73,15 @@ export async function POST(request: Request) {
     let result;
     if (existingResult.rowCount === 0) {
       // Create new daily record (Check-in)
+      const now = new Date();
+      // Threshold: 10:00 AM in the configured timezone (system time is assumed to be correct)
+      const isLate = now.getHours() >= 10;
+      
       result = await query(
         `INSERT INTO attendance (employee_id, tenant_id, date, check_in, status, source)
-         VALUES ($1, $2, $3, NOW(), 'PRESENT', $4)
+         VALUES ($1, $2, $3, NOW(), $5, $4)
          RETURNING *`,
-        [internalEmployeeId, tenantId, today, sourceType]
+        [internalEmployeeId, tenantId, today, sourceType, isLate ? 'LATE' : 'PRESENT']
       );
     } else {
       // Update existing record (Check-out) and calculate hours
