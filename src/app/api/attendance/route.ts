@@ -91,7 +91,7 @@ export async function GET(request: Request) {
       }
     }
 
-    queryString += ' ORDER BY e.first_name ASC';
+    queryString += ' ORDER BY a.date DESC, a.check_in ASC';
     const result = await query(queryString, params);
 
     // Map result columns to frontend-expected camelCase

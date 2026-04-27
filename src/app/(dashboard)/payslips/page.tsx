@@ -46,7 +46,7 @@ export default function DynamicPayslipsPage() {
   if (loading) return <div className="flex justify-center p-24"><Loader2 className="animate-spin text-primary w-8 h-8"/></div>;
 
   return (
-    <div className="max-w-auto space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto py-8 px-6 space-y-6 animate-fade-in">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-8 border-b border-border">
         <div>
           <h1 className="text-2xl font-black text-foreground flex items-center gap-3 uppercase tracking-tight">
