@@ -19,21 +19,21 @@ export async function GET(
     const { id } = await params;
     const { tenantId } = payload;
 
-    // Supports finding by UUID OR university_id
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-    const idField = isUuid ? 'e.id' : '(e.university_id = $1 OR e.employee_id = $1)';
-    const queryParam = [id, tenantId];
-
+    // Supports finding by UUID OR university_id/employee_id
+    // More permissive UUID regex or simple length check can be used, but let's just try to be more robust
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
     const result = await query(`
       SELECT e.*, d.name as department_name, ds.name as designation_name,
-             m.first_name || ' ' || m.last_name as manager_name
+             COALESCE(m.first_name, '') || ' ' || COALESCE(m.last_name, '') as manager_name,
+             m.employee_id as manager_employee_id
       FROM employees e
       LEFT JOIN departments d ON e.department_id = d.id
       LEFT JOIN designations ds ON e.designation_id = ds.id
       LEFT JOIN employees m ON e.manager_id = m.id
       WHERE ${isUuid ? 'e.id = $1' : '(e.university_id = $1 OR e.employee_id = $1)'} AND e.tenant_id = $2
       LIMIT 1
-    `, queryParam);
+    `, [id, tenantId]);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
@@ -42,7 +42,9 @@ export async function GET(
     const employee = result.rows[0];
 
     // Calculate real-time stats for the current month
-    const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA'); // YYYY-MM-DD
+    
     const statsResult = await query(
       `SELECT 
         COUNT(*) as total_days,
@@ -53,7 +55,7 @@ export async function GET(
       [employee.id, firstOfMonth]
     );
 
-    const stats = statsResult.rows[0];
+    const stats = statsResult.rows[0] || { total_days: 0, present_days: 0, total_hours: 0 };
     const presentDays = parseInt(stats.present_days || 0);
     const totalDays = parseInt(stats.total_days || 0);
     const totalHours = parseFloat(stats.total_hours || 0);
@@ -65,17 +67,21 @@ export async function GET(
 
     // Calculate dynamic deduction (e.g., LOP for missed hours/days)
     const basic = Number(employee.salary_basic || 0);
-    const totalGross = basic + Number(employee.salary_hra || 0) + Number(employee.salary_allowances || 0);
+    const hra = Number(employee.salary_hra || 0);
+    const allowances = Number(employee.salary_allowances || 0);
+    const deductions = Number(employee.salary_deductions || 0);
+    
+    const totalGross = basic + hra + allowances;
     const perDaySalary = totalGross / 30;
     const absentDays = totalDays - presentDays;
-    const accruedDeduction = (absentDays * perDaySalary) + Number(employee.salary_deductions || 0);
+    const accruedDeduction = (absentDays * perDaySalary) + deductions;
 
     // Map and sanitize salary fields
     const salary = {
-      basic: Number(employee.salary_basic || 0),
-      hra: Number(employee.salary_hra || 0),
-      allowances: Number(employee.salary_allowances || 0),
-      deductions: Math.max(Number(employee.salary_deductions || 0), Math.round(accruedDeduction))
+      basic,
+      hra,
+      allowances,
+      deductions: Math.max(deductions, Math.round(accruedDeduction))
     };
 
     // Map to camelCase for frontend
@@ -88,7 +94,8 @@ export async function GET(
       lastName: employee.last_name,
       department: employee.department_name,
       designation: employee.designation_name,
-      managerName: employee.manager_name,
+      managerName: employee.manager_name?.trim() || 'N/A',
+      manager_employee_id: employee.manager_employee_id,
       joinDate: employee.join_date || employee.created_at,
       salary,
       metrics: {
@@ -98,11 +105,16 @@ export async function GET(
     };
 
     return NextResponse.json({ success: true, employee: mappedEmployee });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch employee detail error:', error);
-    return NextResponse.json({ error: 'Failed to fetch employee' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to fetch employee', 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }
+
 
 export async function PUT(
   request: Request,
@@ -123,7 +135,7 @@ export async function PUT(
     const { tenantId } = payload;
 
     // Supports finding by UUID OR university_id
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
     // 1. Get current employee to ensure they exist and belong to the tenant
     const checkRes = await query(
@@ -137,36 +149,53 @@ export async function PUT(
 
     const employeeUuid = checkRes.rows[0].id;
 
+    // Handle name splitting
+    // If 'name' is provided, it should override firstName/lastName to ensure UI edits persist
+    let { firstName, lastName } = body;
+    if (body.name) {
+      const parts = body.name.trim().split(/\s+/);
+      firstName = parts[0];
+      lastName = parts.slice(1).join(' ') || '';
+    }
+
     // 2. Perform Update
     const result = await query(
       `UPDATE employees SET
         first_name = COALESCE($1, first_name),
+
         last_name = COALESCE($2, last_name),
         email = COALESCE($3, email),
         role = COALESCE($4, role),
-        department_id = COALESCE($5, department_id),
-        manager_id = COALESCE($6, manager_id),
+        department_id = $5,
+        manager_id = $6,
         salary_basic = COALESCE($7, salary_basic),
         salary_hra = COALESCE($8, salary_hra),
         salary_allowances = COALESCE($9, salary_allowances),
         salary_deductions = COALESCE($10, salary_deductions),
+        designation_id = $12,
+        is_active = COALESCE($13, is_active),
+        phone = COALESCE($14, phone),
         updated_at = NOW()
       WHERE id = $11
       RETURNING *`,
       [
-        body.firstName,
-        body.lastName,
+        firstName,
+        lastName,
         body.email,
         body.role,
-        body.departmentId || null,
-        body.managerId || null,
-        body.salary?.basic,
-        body.salary?.hra,
-        body.salary?.allowances,
-        body.salary?.deductions,
-        employeeUuid
+        body.departmentId || body.department_id || null,
+        body.managerId || body.reportsToId || body.reports_to_id || body.manager_id || null,
+        body.salary?.basic ?? body.salary_basic,
+        body.salary?.hra ?? body.salary_hra,
+        body.salary?.allowances ?? body.salary_allowances,
+        body.salary?.deductions ?? body.salary_deductions,
+        employeeUuid,
+        body.designationId || body.designation_id || null,
+        body.status === undefined ? undefined : (body.status === 'active' || body.status === true),
+        body.phone,
       ]
     );
+
 
     return NextResponse.json({ success: true, employee: result.rows[0] });
   } catch (error) {
@@ -192,22 +221,56 @@ export async function DELETE(
     const { id } = await params;
     const { tenantId } = payload;
 
-    // Supports finding by UUID OR university_id
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-
-    const result = await query(
-      `DELETE FROM employees WHERE ${isUuid ? 'id = $1' : 'university_id = $1'} AND tenant_id = $2 RETURNING id`,
+    // 1. Find employee to get necessary identifiers (id, email, employee_id)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    const empRes = await query(
+      `SELECT id, email, university_id, employee_id FROM employees 
+       WHERE ${isUuid ? 'id = $1' : '(university_id = $1 OR employee_id = $1)'} AND tenant_id = $2`,
       [id, tenantId]
     );
 
-    if (result.rows.length === 0) {
+    if (empRes.rows.length === 0) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, message: 'Employee removed successfully' });
-  } catch (error) {
+    const employee = empRes.rows[0];
+
+    // 2. Delete dependent records (to avoid foreign key violations)
+    // Delete from users (references employee_id/university_id)
+    await query(
+      `DELETE FROM users WHERE (email = $1 OR employee_id = $2) AND tenant_id = $3`,
+      [employee.email, employee.employee_id || employee.university_id, tenantId]
+    );
+
+    // Delete from attendance (references id)
+    await query(
+      `DELETE FROM attendance WHERE employee_id = $1`,
+      [employee.id]
+    );
+
+    // Delete from leave_requests (references id)
+    await query(
+      `DELETE FROM leave_requests WHERE employee_id = $1`,
+      [employee.id]
+    );
+
+    // 3. Finally delete from employees
+    const result = await query(
+      `DELETE FROM employees WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [employee.id, tenantId]
+    );
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Employee and associated user records removed successfully' 
+    });
+  } catch (error: any) {
     console.error('Delete employee error:', error);
-    return NextResponse.json({ error: 'Failed to delete employee' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to delete employee', 
+      details: error.message 
+    }, { status: 500 });
   }
 }
 

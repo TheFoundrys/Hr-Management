@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 require('dotenv').config();
 
-async function checkSchema() {
+async function checkLeaveApprovalsSchema() {
   const client = new Client({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
@@ -14,11 +14,12 @@ async function checkSchema() {
   try {
     await client.connect();
     const res = await client.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'employees'
+      SELECT conname, pg_get_constraintdef(c.oid) 
+      FROM pg_constraint c 
+      JOIN pg_class t ON t.oid = c.conrelid 
+      WHERE t.relname = 'leave_approvals'
     `);
-    console.log('Employees table columns:');
+    console.log('leave_approvals table constraints:');
     console.table(res.rows);
   } catch (e) {
     console.error('Failed to check schema:', e);
@@ -27,4 +28,4 @@ async function checkSchema() {
   }
 }
 
-checkSchema();
+checkLeaveApprovalsSchema();

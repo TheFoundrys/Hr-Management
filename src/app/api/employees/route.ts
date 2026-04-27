@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     if (effectiveScope === 'all' && isPowerful) {
       queryString = `
         SELECT ${empFields}, d.name as department_name, ds.name as designation_name,
-               m.first_name || ' ' || m.last_name as reporting_name
+               COALESCE(m.first_name, '') || ' ' || COALESCE(m.last_name, '') as reporting_name
         FROM employees e
         LEFT JOIN departments d ON e.department_id = d.id
         LEFT JOIN designations ds ON e.designation_id = ds.id
@@ -118,15 +118,18 @@ export async function GET(request: Request) {
       ...emp,
       name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
       status: emp.is_active ? 'active' : 'inactive',
-      reporting_name: emp.reporting_name || 'System Admin',
+      reporting_name: emp.reporting_name?.trim() || 'System Admin',
       department_name: emp.department_name || 'Institutional',
       designation_name: emp.designation_name || emp.role
     }));
 
     return NextResponse.json({ success: true, employees });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get employees error:', error);
-    return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to fetch employees',
+      details: error.message 
+    }, { status: 500 });
   }
 }
 

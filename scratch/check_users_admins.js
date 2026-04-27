@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 require('dotenv').config();
 
-async function checkSchema() {
+async function checkUsers() {
   const client = new Client({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
@@ -14,17 +14,17 @@ async function checkSchema() {
   try {
     await client.connect();
     const res = await client.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'employees'
+      SELECT id, email, role, tenant_id, employee_id 
+      FROM users 
+      WHERE role = 'ADMIN'
     `);
-    console.log('Employees table columns:');
+    console.log('Users with ADMIN role:');
     console.table(res.rows);
   } catch (e) {
-    console.error('Failed to check schema:', e);
+    console.error('Failed to check users:', e);
   } finally {
     await client.end();
   }
 }
 
-checkSchema();
+checkUsers();

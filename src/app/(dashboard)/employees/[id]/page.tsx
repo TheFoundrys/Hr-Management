@@ -88,7 +88,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     <div className="max-w-6xl mx-auto py-8 px-6 space-y-8 animate-in fade-in duration-500">
       <header className="flex items-center justify-between border-b border-border pb-6">
         <div className="flex items-center gap-4">
-          <Link href="/employees" className="p-3 bg-muted border border-border rounded-2xl text-muted-foreground hover:text-foreground transition-all">
+          <Link href="/employees" className="px-4 py-3 bg-muted border border-border rounded-2xl text-muted-foreground hover:text-foreground transition-all shadow-sm">
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -97,12 +97,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           </div>
         </div>
         <div className="flex gap-3">
-          <button onClick={generateIDCard} className="flex items-center gap-2 bg-muted border border-border text-foreground px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-card transition-all shadow-sm">
+          <button onClick={generateIDCard} className="flex items-center gap-2 bg-muted border border-border text-foreground px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-card transition-all shadow-sm">
             <Printer size={16} /> ID Card
           </button>
           <button 
             onClick={handleDelete}
-            className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+            className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all shadow-sm"
           >
             <Trash2 size={16} /> Delete
           </button>

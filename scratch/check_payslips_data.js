@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 require('dotenv').config();
 
-async function checkSchema() {
+async function checkPayslipsData() {
   const client = new Client({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
@@ -14,17 +14,18 @@ async function checkSchema() {
   try {
     await client.connect();
     const res = await client.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'employees'
+      SELECT id, user_id, month, year, basic_salary, hra, allowances, deductions, net_salary, status, generated_at 
+      FROM payslip_records 
+      ORDER BY generated_at DESC 
+      LIMIT 10
     `);
-    console.log('Employees table columns:');
+    console.log('Recent Payslip Records:');
     console.table(res.rows);
   } catch (e) {
-    console.error('Failed to check schema:', e);
+    console.error('Failed to check payslips:', e);
   } finally {
     await client.end();
   }
 }
 
-checkSchema();
+checkPayslipsData();

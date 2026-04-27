@@ -22,6 +22,7 @@ export default function SalaryStructurePage() {
   const [loading, setLoading] = useState(true);
   const [editingRecord, setEditingRecord] = useState<SalaryRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const fetchRecords = () => {
     setLoading(true);
@@ -38,13 +39,17 @@ export default function SalaryStructurePage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchRecords();
   }, []);
+
+  if (!mounted) return null;
+
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRecord) return;
-    
+
     setSaving(true);
     try {
       const res = await fetch('/api/salary-structure', {
@@ -111,14 +116,13 @@ export default function SalaryStructurePage() {
                     <td className="py-4 px-6 text-sm text-right font-bold text-danger">₹{rec.deductions.toLocaleString()}</td>
                     <td className="py-4 px-6 text-sm text-right font-black text-emerald-600">₹{rec.netSalary.toLocaleString()}</td>
                     <td className="py-4 px-6">
-                      <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                        rec.status === 'processed' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'
-                      }`}>
+                      <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${rec.status === 'processed' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'
+                        }`}>
                         {rec.status}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <button 
+                      <button
                         onClick={() => setEditingRecord(rec)}
                         className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
                       >
@@ -139,14 +143,14 @@ export default function SalaryStructurePage() {
             <button onClick={() => setEditingRecord(null)} className="absolute top-6 right-6 text-muted-foreground hover:text-foreground p-1 transition-colors"><X className="w-5 h-5" /></button>
             <h2 className="text-xl font-black text-foreground uppercase tracking-tight mb-1">Override Parameters</h2>
             <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-8">{editingRecord.name} • {editingRecord.employeeId}</p>
-            
+
             <form onSubmit={handleUpdate} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Basic Allocation</label>
                 <input
                   type="number" required
                   value={editingRecord.basicSalary}
-                  onChange={e => setEditingRecord({...editingRecord, basicSalary: parseFloat(e.target.value) || 0})}
+                  onChange={e => setEditingRecord({ ...editingRecord, basicSalary: parseFloat(e.target.value) || 0 })}
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
@@ -155,7 +159,7 @@ export default function SalaryStructurePage() {
                 <input
                   type="number" required
                   value={editingRecord.hra}
-                  onChange={e => setEditingRecord({...editingRecord, hra: parseFloat(e.target.value) || 0})}
+                  onChange={e => setEditingRecord({ ...editingRecord, hra: parseFloat(e.target.value) || 0 })}
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
@@ -164,7 +168,7 @@ export default function SalaryStructurePage() {
                 <input
                   type="number" required
                   value={editingRecord.allowances}
-                  onChange={e => setEditingRecord({...editingRecord, allowances: parseFloat(e.target.value) || 0})}
+                  onChange={e => setEditingRecord({ ...editingRecord, allowances: parseFloat(e.target.value) || 0 })}
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-foreground text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
@@ -173,21 +177,21 @@ export default function SalaryStructurePage() {
                 <input
                   type="number" required
                   value={editingRecord.deductions}
-                  onChange={e => setEditingRecord({...editingRecord, deductions: parseFloat(e.target.value) || 0})}
+                  onChange={e => setEditingRecord({ ...editingRecord, deductions: parseFloat(e.target.value) || 0 })}
                   className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-danger text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
 
               <div className="flex gap-4 pt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setEditingRecord(null)}
                   className="flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted border border-border transition-all"
                 >
                   Suspend
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={saving}
                   className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >

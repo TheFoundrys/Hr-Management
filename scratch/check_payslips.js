@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 require('dotenv').config();
 
-async function checkSchema() {
+async function checkPayslipsSchema() {
   const client = new Client({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
@@ -16,9 +16,9 @@ async function checkSchema() {
     const res = await client.query(`
       SELECT column_name, data_type 
       FROM information_schema.columns 
-      WHERE table_name = 'employees'
+      WHERE table_name = 'payslip_records'
     `);
-    console.log('Employees table columns:');
+    console.log('payslip_records table columns:');
     console.table(res.rows);
   } catch (e) {
     console.error('Failed to check schema:', e);
@@ -27,4 +27,4 @@ async function checkSchema() {
   }
 }
 
-checkSchema();
+checkPayslipsSchema();

@@ -6,9 +6,6 @@ export async function GET(request: Request) {
   try {
     const tenantId = await getTenantId(request);
 
-    // Fetch all employees and join with their latest payslip if it exists for the current month/year
-    // Or just fetch all employees to configure their BASE salaries.
-    // The user wants to see "New Employees" here.
     const result = await query(
       `SELECT 
         e.university_id, e.employee_id, e.first_name, e.last_name,
@@ -54,15 +51,15 @@ export async function PUT(request: Request) {
 
     const netSalary = Number(basicSalary) + Number(hra) + Number(allowances) - Number(deductions);
 
-    // If 'id' is a university_id (TFU-xxx), it means we update the BASE salary in 'employees'
-    // If 'id' is a UUID, it's a payslip_id, so we update 'payslip_records'
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    // If 'id' is different from 'employeeId', it means we are updating an existing payslip_record
+    // Otherwise, we are updating the BASE salary in the 'employees' table
+    const isPayslip = id !== employeeId;
 
-    if (isUuid) {
+    if (isPayslip) {
       await query(
         `UPDATE payslip_records SET
           basic_salary = $1, hra = $2, allowances = $3, deductions = $4,
-          net_salary = $5, updated_at = NOW()
+          net_salary = $5, is_manual = TRUE, updated_at = NOW()
          WHERE id = $6 AND tenant_id::text = $7::text`,
         [basicSalary, hra, allowances, deductions, netSalary, id, tenantId]
       );

@@ -138,11 +138,23 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-card border border-border rounded-[2.5rem] p-8 shadow-sm">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Full Legal Name</label>
-                <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all" />
+                <input 
+                  required 
+                  value={formData.name || ''} 
+                  onChange={e => setFormData({...formData, name: e.target.value})} 
+                  className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all" 
+                />
               </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal Email Address</label>
-                <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all" />
+                <input 
+                  type="email" 
+                  required 
+                  value={formData.email || ''} 
+                  onChange={e => setFormData({...formData, email: e.target.value})} 
+                  className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all" 
+                />
               </div>
             </div>
           </section>
@@ -155,7 +167,12 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-card border border-border rounded-[2.5rem] p-8 shadow-sm">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Organizational Role</label>
-                <select required value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all">
+                <select 
+                  required 
+                  value={formData.role || ''} 
+                  onChange={e => setFormData({...formData, role: e.target.value})} 
+                  className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all"
+                >
                   {roles.map(r => <option key={r.id} value={r.id} className="bg-card">{r.label}</option>)}
                 </select>
               </div>
@@ -163,8 +180,8 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Department</label>
                   <select 
-                    value={formData.departmentId || formData.department_id || ''} 
-                    onChange={(e) => setFormData({...formData, departmentId: e.target.value})}
+                    value={formData.department_id || formData.departmentId || ''} 
+                    onChange={(e) => setFormData({...formData, departmentId: e.target.value, department_id: e.target.value})}
                     className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all"
                   >
                     <option value="" className="bg-card">Select Department</option>
@@ -175,8 +192,8 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Active Designation</label>
                 <select 
-                  value={formData.designationId || formData.designation_id || ''} 
-                  onChange={(e) => setFormData({...formData, designationId: e.target.value})}
+                  value={formData.designation_id || formData.designationId || ''} 
+                  onChange={(e) => setFormData({...formData, designationId: e.target.value, designation_id: e.target.value})}
                   className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all"
                 >
                   <option value="" className="bg-card">Select Designation</option>
@@ -186,8 +203,8 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Reports To (Manager)</label>
                 <select 
-                  value={formData.reportsToId || formData.reports_to_id || ''} 
-                  onChange={(e) => setFormData({...formData, reportsToId: e.target.value})}
+                  value={formData.manager_id || formData.reportsToId || ''} 
+                  onChange={(e) => setFormData({...formData, managerId: e.target.value, manager_id: e.target.value})}
                   className="w-full px-5 py-3.5 bg-muted border border-border rounded-2xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all"
                 >
                   <option value="" className="bg-card">Select Manager</option>
@@ -213,7 +230,7 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">{f.label}</label>
                   <input 
                     type="number" 
-                    value={formData.salary?.[f.key] || 0} 
+                    value={formData.salary?.[f.key] ?? 0} 
                     onChange={e => setFormData({
                       ...formData, 
                       salary: { ...formData.salary, [f.key]: parseFloat(e.target.value) || 0 }
@@ -224,6 +241,7 @@ export default function EditEmployeePage({ params }: { params: Promise<{ id: str
               ))}
             </div>
           </section>
+
         </form>
       </div>
     </div>

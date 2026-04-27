@@ -197,7 +197,7 @@ export default function EmployeesPage() {
                       {emp.status}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-right space-x-2">
+                  <td className="px-6 py-5 text-right space-x-3">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -210,11 +210,11 @@ export default function EmployeesPage() {
                             });
                         }
                       }}
-                      className="p-2.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-all inline-block"
+                      className="p-3.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 rounded-2xl transition-all inline-block shadow-sm"
                     >
                        <Trash2 size={18} />
                     </button>
-                    <Link href={`/employees/${emp.id}`} className="p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl transition-all inline-block">
+                    <Link href={`/employees/${emp.id}`} className="p-3.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-2xl transition-all inline-block shadow-sm">
                        <ChevronRight size={18} />
                     </Link>
                   </td>
