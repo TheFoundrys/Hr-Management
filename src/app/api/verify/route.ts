@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       [token]
     );
 
-    if (result.rowCount === 0) {
+    if ((result.rowCount || 0) === 0) {
       return NextResponse.redirect(`${base}/login?error=Invalid+or+used+token`);
     }
 

@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       "SELECT id, first_name || ' ' || last_name as name FROM employees WHERE university_id = $1 AND tenant_id = $2",
       [employeeId, tenantId]
     );
-    if (empResult.rowCount === 0) {
+    if ((empResult.rowCount || 0) === 0) {
       return NextResponse.json({ error: 'Employee not found in this tenant' }, { status: 404 });
     }
     const internalEmployeeId = empResult.rows[0].id;
@@ -60,29 +60,66 @@ export async function POST(request: Request) {
        AND created_at > NOW() - INTERVAL '5 minutes'`,
       [internalEmployeeId, tenantId, today]
     );
-    if (recentResult.rowCount && recentResult.rowCount > 0) {
+    if ((recentResult.rowCount || 0) > 0) {
       return NextResponse.json({ error: 'Duplicate scan. Please wait 5 minutes.' }, { status: 429 });
     }
 
     // 4. Determine Status (Simple logic: first of day is check-in, rest are check-out updates)
     const existingResult = await query(
-      'SELECT id, check_in FROM attendance WHERE employee_id = $1 AND tenant_id = $2 AND date = $3',
+      'SELECT id, check_in, status FROM attendance WHERE employee_id = $1 AND tenant_id = $2 AND date = $3',
       [internalEmployeeId, tenantId, today]
     );
 
     let result;
-    if (existingResult.rowCount === 0) {
-      // Create new daily record (Check-in)
+    const isFirstTime = (existingResult.rowCount || 0) === 0 || (existingResult.rows[0].status === 'ON_LEAVE' && !existingResult.rows[0].check_in);
+
+    if (isFirstTime) {
+      // Create or Update record (Check-in)
       const now = new Date();
-      // Threshold: 10:00 AM in the configured timezone (system time is assumed to be correct)
       const isLate = now.getHours() >= 10;
-      
-      result = await query(
-        `INSERT INTO attendance (employee_id, tenant_id, date, check_in, status, source)
-         VALUES ($1, $2, $3, NOW(), $5, $4)
-         RETURNING *`,
-        [internalEmployeeId, tenantId, today, sourceType, isLate ? 'LATE' : 'PRESENT']
-      );
+      const newStatus = isLate ? 'LATE' : 'PRESENT';
+
+      if ((existingResult.rowCount || 0) > 0 && existingResult.rows[0].status === 'ON_LEAVE') {
+        // REFUND LOGIC: If they were on leave but showed up, refund the balance
+        console.log(`[REFUND] Employee ${internalEmployeeId} showed up on leave day. Refunding 1 day.`);
+        
+        // 1. Find the leave request that covered today to get the leave_type_id
+        const lrResult = await query(
+          `SELECT leave_type_id FROM leave_requests 
+           WHERE employee_id = $1 AND tenant_id = $2 AND status = 'approved'
+           AND $3::date >= start_date::date AND $3::date <= end_date::date
+           LIMIT 1`,
+          [internalEmployeeId, tenantId, today]
+        );
+
+        if ((lrResult.rowCount || 0) > 0) {
+          const leaveTypeId = lrResult.rows[0].leave_type_id;
+          // 2. Increment balance
+          await query(
+            `UPDATE leave_balances 
+             SET used_days = used_days - 1, 
+                 remaining_days = remaining_days + 1
+             WHERE employee_id = $1 AND leave_type_id = $2 AND year = $3`,
+            [internalEmployeeId, leaveTypeId, new Date().getFullYear()]
+          );
+        }
+
+        // 3. Update the attendance record
+        result = await query(
+          `UPDATE attendance 
+           SET check_in = NOW(), status = $1, source = $2, updated_at = NOW()
+           WHERE id = $3 RETURNING *`,
+          [newStatus, sourceType, existingResult.rows[0].id]
+        );
+      } else {
+        // Standard Check-in
+        result = await query(
+          `INSERT INTO attendance (employee_id, tenant_id, date, check_in, status, source)
+           VALUES ($1, $2, $3, NOW(), $5, $4)
+           RETURNING *`,
+          [internalEmployeeId, tenantId, today, sourceType, newStatus]
+        );
+      }
     } else {
       // Update existing record (Check-out) and calculate hours
       result = await query(
@@ -100,7 +137,7 @@ export async function POST(request: Request) {
     try {
       const { attendanceEvents } = require('@/lib/utils/events');
       attendanceEvents.emit('attendance_event', {
-        type: existingResult.rowCount === 0 ? 'check_in' : 'check_out',
+        type: (existingResult.rowCount || 0) === 0 ? 'check_in' : 'check_out',
         employeeId,
         employeeName,
         tenantId,
@@ -114,7 +151,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       success: true, 
       data: result.rows[0],
-      type: existingResult.rowCount === 0 ? 'check_in' : 'check_out'
+      type: (existingResult.rowCount || 0) === 0 ? 'check_in' : 'check_out'
     });
 
   } catch (error) {

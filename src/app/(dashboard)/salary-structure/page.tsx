@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Wallet, Loader2, Edit3, X } from 'lucide-react';
+import { FinancesNav } from '@/components/FinancesNav';
 
 interface SalaryRecord {
   id: string;
@@ -70,6 +71,7 @@ export default function SalaryStructurePage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <FinancesNav />
       <div className="flex items-center justify-between pb-6 border-b border-border">
         <div>
           <h1 className="text-2xl font-black text-foreground flex items-center gap-3 uppercase tracking-tight">

@@ -8,29 +8,36 @@ export async function GET(request: Request) {
     const tenantId = await getTenantId(request);
     const { searchParams } = new URL(request.url);
     let employeeId = searchParams.get('employeeId');
+    let status = searchParams.get('status');
     const userRole = request.headers.get('x-user-role') || '';
     
     const canManageLeave = hasPermission(userRole, 'MANAGE_LEAVE');
 
     // Security: If not an approver/admin, force their own employeeId
     if (!canManageLeave) {
-      // In a real app we'd fetch the employee record linked to the session user
-      // For now, if employeeId is missing and they aren't admin, it's a 403 or we must have one
       if (!employeeId) return NextResponse.json({ error: 'Permission denied: Missing scope' }, { status: 403 });
     }
 
-    const params = employeeId ? [tenantId, employeeId] : [tenantId];
-
-    const result = await query(
-      `SELECT lr.*, lt.name as type_name, e.first_name, e.last_name, e.employee_id as emp_string_id
+    const params: any[] = [tenantId];
+    let queryStr = `SELECT lr.*, lt.name as type_name, e.first_name, e.last_name, e.employee_id as emp_string_id
        FROM leave_requests lr
        JOIN leave_types lt ON lr.leave_type_id = lt.id
        JOIN employees e ON lr.employee_id = e.id
-       WHERE lr.tenant_id = $1 
-       ${employeeId ? 'AND (e.id::text = $2 OR e.employee_id = $2 OR e.university_id = $2)' : ''}
-       ORDER BY lr.created_at DESC`,
-      params
-    );
+       WHERE lr.tenant_id = $1`;
+
+    if (employeeId) {
+      params.push(employeeId);
+      queryStr += ` AND (e.id::text = $${params.length} OR e.employee_id = $${params.length} OR e.university_id = $${params.length})`;
+    }
+
+    if (status) {
+      params.push(status);
+      queryStr += ` AND lr.status = $${params.length}`;
+    }
+
+    queryStr += ` ORDER BY lr.created_at DESC`;
+
+    const result = await query(queryStr, params);
 
     return NextResponse.json({ success: true, requests: result.rows });
   } catch (error) {

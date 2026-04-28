@@ -4,6 +4,7 @@ import { FileText, Download, Loader2, Search } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { FinancesNav } from '@/components/FinancesNav';
 
 export default function DynamicPayslipsPage() {
   const { user } = useAuthStore();
@@ -47,6 +48,7 @@ export default function DynamicPayslipsPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-6 space-y-6 animate-fade-in">
+      <FinancesNav />
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-8 border-b border-border">
         <div>
           <h1 className="text-2xl font-black text-foreground flex items-center gap-3 uppercase tracking-tight">

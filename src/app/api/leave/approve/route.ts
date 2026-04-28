@@ -86,6 +86,8 @@ export async function POST(request: Request) {
     const req = reqResult.rows[0];
     const currentLevel = req.current_level || 1;
 
+    const userRole = request.headers.get('x-user-role') || '';
+
     // 2. Handle Rejection
     if (status === 'rejected') {
       await query(
@@ -102,7 +104,8 @@ export async function POST(request: Request) {
 
     // 3. Handle Approval
     const nextLevel = currentLevel + 1;
-    const isFinalApproval = currentLevel >= 3;
+    // Admins and HR can perform final approval in one step
+    const isFinalApproval = currentLevel >= 3 || userRole === 'GLOBAL_ADMIN' || userRole === 'HR_MANAGER';
 
     if (!isFinalApproval) {
       // Advance to next level
@@ -130,11 +133,12 @@ export async function POST(request: Request) {
       );
 
       if (balanceCheck.rowCount === 0) {
-        // Create balance record if missing
+        // Create balance record if missing (Self-healing)
+        // Note: Defaulting to 12 days for new records if not specified
         await query(
-          `INSERT INTO leave_balances (tenant_id, employee_id, leave_type_id, year, allocated_days, used_days, remaining_days, accrued_so_far)
-           SELECT tenant_id, id, $2, $3, 0, 0, 0, 0 FROM employees WHERE id = $1
-           ON CONFLICT DO NOTHING`,
+          `INSERT INTO leave_balances (tenant_id, employee_id, leave_type_id, year, allocated_days, used_days, remaining_days)
+           SELECT tenant_id, id, $2, $3, 24, 0, 24 FROM employees WHERE id = $1 OR employee_id::text = $1::text
+           ON CONFLICT (employee_id, leave_type_id, year) DO NOTHING`,
           [req.employee_id, req.leave_type_id, new Date().getFullYear()]
         );
       }
@@ -142,8 +146,7 @@ export async function POST(request: Request) {
       const updateRes = await query(
         `UPDATE leave_balances 
          SET used_days = used_days + $1::numeric, 
-             remaining_days = remaining_days - $1::numeric, 
-             updated_at = NOW()
+             remaining_days = remaining_days - $1::numeric
          WHERE employee_id = $2::uuid
          AND leave_type_id = $3::uuid 
          AND year = $4`,
@@ -159,8 +162,8 @@ export async function POST(request: Request) {
       while (curr <= end) {
         await query(
           `INSERT INTO attendance (employee_id, tenant_id, date, status, source)
-           VALUES ($1, $2, $3, 'on-leave', 'system')
-           ON CONFLICT (employee_id, tenant_id, date) DO UPDATE SET status = 'on-leave'`,
+           VALUES ($1, $2, $3, 'ON_LEAVE', 'system')
+           ON CONFLICT (employee_id, tenant_id, date) DO UPDATE SET status = 'ON_LEAVE'`,
           [req.employee_id, tenantId, curr.toISOString().split('T')[0]]
         );
         curr.setDate(curr.getDate() + 1);

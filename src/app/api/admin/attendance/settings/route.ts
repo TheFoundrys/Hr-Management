@@ -3,6 +3,8 @@ import { query } from '@/lib/db/postgres';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/jwt';
 
+import { hasPermission } from '@/lib/auth/rbac';
+
 /**
  * Update Tenant Attendance Settings (e.g., toggle IP validation)
  */
@@ -13,8 +15,8 @@ export async function PATCH(request: Request) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || !['ADMIN', 'SUPER_ADMIN'].includes(payload.role || '')) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!payload || !hasPermission(payload.role || '', 'MANAGE_SYSTEM')) {
+      return NextResponse.json({ error: 'System management access required' }, { status: 403 });
     }
 
     const { enable_ip_validation, attendance_mode } = await request.json();

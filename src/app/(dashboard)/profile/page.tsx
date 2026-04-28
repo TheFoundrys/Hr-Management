@@ -1,208 +1,325 @@
 'use client';
+
 import { useEffect, useState } from 'react';
-import { Mail, Phone, MapPin, Building, Briefcase, Calendar, CreditCard, ShieldAlert, Loader2, CheckCircle2, Lock, Globe, User, MessageSquare, AlertCircle, X, Send } from 'lucide-react';
+import { 
+  User, Mail, Phone, MapPin, Briefcase, GraduationCap, 
+  CreditCard, ShieldCheck, Edit2, Plus, Trash2, Save, X, 
+  Loader2, CheckCircle2, AlertCircle, Camera, FileText,
+  UserCheck, Globe, Calendar, Heart, Shield
+} from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { hasPermission } from '@/lib/auth/rbac';
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [requestCategory, setRequestCategory] = useState('');
-  const [requestDescription, setRequestDescription] = useState('');
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState('primary');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  useEffect(() => {
-    fetch('/api/employees/me').then(r => r.json()).then(d => { if (d.success) setProfile(d.employee); }).finally(() => setLoading(false));
-  }, []);
-
-  const openRequestModal = (category: string) => {
-    setRequestCategory(category);
-    setRequestDescription('');
-    setMessage(null);
-    setIsModalOpen(true);
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/employees/me');
+      const data = await res.json();
+      if (data.success) {
+        setProfile(data.employee);
+        setEditData(data.employee);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmitRequest = async () => {
-    if (!requestDescription) return;
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSave = async () => {
     setSubmitting(true);
+    setMessage(null);
     try {
-      const res = await fetch('/api/support/requests', {
-        method: 'POST',
+      const res = await fetch('/api/employees/me', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: requestCategory.toLowerCase(), description: requestDescription })
+        body: JSON.stringify(editData)
       });
       const data = await res.json();
       if (data.success) {
-        setMessage({ type: 'success', text: 'Your request has been submitted to the admin.' });
-        setTimeout(() => setIsModalOpen(false), 2000);
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        setProfile(editData);
+        setTimeout(() => setIsEditing(false), 1500);
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to submit request.' });
+        setMessage({ type: 'error', text: data.error || 'Failed to update.' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Connection error. Please try again.' });
+      setMessage({ type: 'error', text: 'Connection error.' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div className="flex justify-center p-24"><Loader2 className="animate-spin text-primary w-8 h-8"/></div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <Loader2 className="animate-spin text-primary w-10 h-10" />
+      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading Profile...</p>
+    </div>
+  );
 
-  const sections = [
-    { t: 'Employment Details', i: Briefcase, f: [
-        { l: 'Employee ID', v: profile?.employee_id || profile?.university_id, i: Lock },
-        { l: 'Department', v: profile?.department_name || profile?.department, i: Building },
-        { l: 'Role', v: profile?.designation_name || profile?.designation, i: User },
-        { l: 'Joining Date', v: profile?.joining_date ? new Date(profile.joining_date).toLocaleDateString() : '—', i: Calendar },
-    ]},
-    { t: 'Contact Information', i: Mail, f: [
-        { l: 'Email Address', v: profile?.email || user?.email, i: Mail },
-        { l: 'Phone Number', v: profile?.phone, i: Phone },
-        { l: 'Current Address', v: profile?.address, i: MapPin },
-    ]}
+  const TABS = [
+    { id: 'primary', label: 'Primary Details', icon: User },
+    { id: 'contact', label: 'Contact', icon: Mail },
+    { id: 'address', label: 'Addresses', icon: MapPin },
+    { id: 'education', label: 'Education & Work', icon: GraduationCap },
+    { id: 'identity', label: 'Identity', icon: ShieldCheck },
   ];
 
-  // Financial info only for Payroll/HR Admins
-  const canSeeFinancial = hasPermission(user?.role || '', 'MANAGE_PAYROLL');
-  if (canSeeFinancial) {
-    sections.push({ 
-      t: 'Financial Details', i: CreditCard, f: [
-        { l: 'Bank Name', v: profile?.bank_name, i: Globe },
-        { l: 'Account Number', v: profile?.bank_account, i: CreditCard },
-        { l: 'IFSC Code', v: profile?.bank_ifsc, i: ShieldAlert },
-      ]
-    });
-  }
+  const InputField = ({ label, name, type = 'text', placeholder = '', options = null }: any) => (
+    <div className="space-y-1.5">
+      <label className="text-xs font-semibold text-muted-foreground ml-1">{label}</label>
+      {options ? (
+        <select 
+          disabled={!isEditing}
+          value={editData[name] || ''}
+          onChange={(e) => setEditData({ ...editData, [name]: e.target.value })}
+          className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg text-sm focus:ring-1 ring-primary outline-none transition-all disabled:opacity-60"
+        >
+          <option value="">Select {label}</option>
+          {options.map((opt: any) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      ) : (
+        <input 
+          type={type}
+          disabled={!isEditing}
+          placeholder={placeholder || `-Not Set-`}
+          value={editData[name] || ''}
+          onChange={(e) => setEditData({ ...editData, [name]: e.target.value })}
+          className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg text-sm focus:ring-1 ring-primary outline-none transition-all disabled:opacity-60"
+        />
+      )}
+    </div>
+  );
 
   return (
-    <div className="max-w-auto space-y-8 animate-fade-in pb-20">
-      <div className="bg-card border border-border rounded-3xl p-10 relative overflow-hidden group shadow-soft">
-        <div className="absolute top-[-20%] right-[-10%] w-96 h-96 bg-primary/5 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
-        <div className="flex items-center gap-10 relative z-10">
-          <div className="w-24 h-24 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-black text-4xl shadow-xl shadow-primary/20">{profile?.name?.[0] || user?.name?.[0]}</div>
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-tight text-foreground">{profile?.name || user?.name}</h1>
-            <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-1">{profile?.role || user?.role} • {profile?.department_name || 'Staff'}</p>
-            <div className="flex gap-3 mt-4">
-              <span className="px-4 py-1.5 bg-muted border border-border rounded-lg text-[10px] font-black text-foreground uppercase tracking-widest leading-none">{profile?.employee_id || 'ID UNASSIGNED'}</span>
-              <span className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[10px] text-emerald-500 font-black uppercase tracking-widest leading-none"><CheckCircle2 size={10} /> Verified</span>
+    <div className="w-full py-6 px-4 space-y-6">
+      {/* Compact Header */}
+      <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="w-20 h-20 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-3xl shrink-0">
+            {profile?.name?.[0] || 'U'}
+          </div>
+          <div className="text-center md:text-left flex-1">
+            <h1 className="text-2xl font-bold text-foreground">
+              {profile?.displayName || profile?.name}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {profile?.designation} • {profile?.department}
+            </p>
+            <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
+              <span className="px-2.5 py-1 bg-muted border border-border rounded-md text-[10px] font-bold text-foreground uppercase tracking-wider">{profile?.employee_id}</span>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <UserCheck size={12} /> Verified
+              </span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className={`grid grid-cols-1 ${sections.length > 2 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8`}>
-        {sections.map((s, i) => (
-          <div key={i} className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-soft flex flex-col group hover:border-primary/30 transition-all duration-300">
-             <div className="px-8 py-6 border-b border-border bg-muted/20 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                   <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                      <s.i className="w-5 h-5" />
-                   </div>
-                   <h2 className="text-sm font-black text-foreground uppercase tracking-widest">{s.t}</h2>
-                </div>
+          <div className="shrink-0">
+            {!isEditing ? (
+              <button 
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm"
+              >
+                <Edit2 size={16} /> Edit Profile
+              </button>
+            ) : (
+              <div className="flex gap-2">
                 <button 
-                  onClick={() => openRequestModal(s.t)}
-                  className="p-2 text-muted-foreground hover:text-primary transition-colors"
-                  title="Request Change"
-                >
-                  <MessageSquare size={16} />
-                </button>
-             </div>
-             
-             <div className="p-8 space-y-8 flex-1">
-               {s.f.map((f, fi) => (
-                 <div key={fi} className="space-y-2">
-                   <div className="flex items-center gap-2">
-                      <f.i className="w-3 h-3 text-muted-foreground" />
-                      <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest leading-none">{f.l}</p>
-                   </div>
-                   <p className={`text-sm font-bold pl-5 ${f.v ? 'text-foreground' : 'text-muted-foreground/60 italic'}`}>
-                     {f.v || 'Not Provided'}
-                   </p>
-                 </div>
-               ))}
-             </div>
-
-             <div className="px-8 py-4 bg-muted/10 border-t border-border mt-auto">
-                <p className="text-[8px] text-muted-foreground uppercase font-bold flex items-center gap-2">
-                  <Lock size={8} /> System Managed Secure Data
-                </p>
-             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Support Request Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-background border border-border rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col scale-100 animate-in zoom-in duration-200">
-            <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                   <MessageSquare className="w-5 h-5" />
-                 </div>
-                 <div>
-                   <h2 className="text-sm font-black uppercase tracking-widest">Submit Change Request</h2>
-                   <p className="text-[10px] text-muted-foreground uppercase font-bold">{requestCategory} Update</p>
-                 </div>
-               </div>
-               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground">
-                 <X size={20} />
-               </button>
-            </div>
-
-            <div className="p-8 space-y-6">
-               {message ? (
-                 <div className={`p-4 rounded-2xl flex items-center gap-4 ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                   {message.type === 'success' ? <CheckCircle2 className="shrink-0" /> : <AlertCircle className="shrink-0" />}
-                   <p className="text-xs font-bold uppercase tracking-tight">{message.text}</p>
-                 </div>
-               ) : (
-                 <>
-                   <div className="space-y-4">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detailed Description</label>
-                     <textarea 
-                       className="w-full h-32 p-4 bg-muted/30 border border-border rounded-2xl focus:ring-2 ring-primary/20 outline-none transition-all text-sm font-medium resize-none"
-                       placeholder={`Explain what changes you need in your ${requestCategory.toLowerCase()} details...`}
-                       value={requestDescription}
-                       onChange={(e) => setRequestDescription(e.target.value)}
-                     />
-                   </div>
-                   <div className="flex items-start gap-4 p-4 bg-primary/5 border border-primary/10 rounded-2xl">
-                     <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                     <p className="text-[10px] text-muted-foreground font-medium leading-relaxed uppercase tracking-tight">
-                       Security Note: Major changes require manual verification by the HR department. You will be notified once reviewed.
-                     </p>
-                   </div>
-                 </>
-               )}
-            </div>
-
-            {!message && (
-              <div className="p-6 border-t border-border flex justify-end gap-3 bg-muted/10">
-                <button 
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => { setIsEditing(false); setEditData(profile); }}
+                  className="px-4 py-2 border border-border text-foreground rounded-lg font-semibold text-sm hover:bg-muted"
                 >
                   Cancel
                 </button>
                 <button 
-                  onClick={handleSubmitRequest}
-                  disabled={submitting || !requestDescription}
-                  className="px-8 py-2.5 bg-primary text-secondary rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-[1.02] transition-all disabled:opacity-50"
+                  onClick={handleSave}
+                  disabled={submitting}
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg font-semibold text-sm hover:bg-primary/90 shadow-sm disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send size={12} />}
-                  Submit Request
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}
+                  Save
                 </button>
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {message && (
+        <div className={`p-3 rounded-lg flex items-center gap-3 text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+           {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+           <p className="font-medium">{message.text}</p>
+        </div>
       )}
+
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Navigation Tabs */}
+        <div className="md:w-56 flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-primary/10 text-primary' 
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <tab.icon size={18} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Card */}
+        <div className="flex-1 bg-card border border-border rounded-xl p-6 md:p-8 shadow-sm">
+          {activeTab === 'primary' && (
+            <div className="space-y-6">
+               <div className="border-b border-border pb-4">
+                  <h2 className="text-lg font-bold">Primary Details</h2>
+                  <p className="text-sm text-muted-foreground">General identity information</p>
+               </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <InputField label="First Name" name="firstName" />
+                  <InputField label="Middle Name" name="middleName" />
+                  <InputField label="Last Name" name="lastName" />
+                  <InputField label="Display Name" name="displayName" />
+                  <InputField label="Gender" name="gender" options={['Male', 'Female', 'Non-binary', 'Other']} />
+                  <InputField label="Date of Birth" name="dateOfBirth" type="date" />
+                  <InputField label="Marital Status" name="maritalStatus" options={['Single', 'Married', 'Divorced', 'Widowed']} />
+                  <InputField label="Blood Group" name="bloodGroup" options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']} />
+                  <InputField label="Physically Handicapped" name="physicallyHandicapped" options={['No', 'Yes']} />
+                  <InputField label="Nationality" name="nationality" />
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'contact' && (
+            <div className="space-y-6">
+               <div className="border-b border-border pb-4">
+                  <h2 className="text-lg font-bold">Contact Details</h2>
+                  <p className="text-sm text-muted-foreground">How we can reach you</p>
+               </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <InputField label="Work Email" name="email" type="email" />
+                  <InputField label="Personal Email" name="personalEmail" type="email" />
+                  <InputField label="Mobile Number" name="phone" />
+                  <InputField label="Work Number" name="workPhone" />
+                  <InputField label="Residence Number" name="residencePhone" />
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'address' && (
+            <div className="space-y-6">
+               <div className="border-b border-border pb-4">
+                  <h2 className="text-lg font-bold">Addresses</h2>
+                  <p className="text-sm text-muted-foreground">Your residential details</p>
+               </div>
+               <div className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground ml-1">Current Address</label>
+                    <textarea 
+                      disabled={!isEditing}
+                      value={editData.address || ''}
+                      onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                      className="w-full h-20 px-3 py-2 bg-muted/20 border border-border rounded-lg text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
+                      placeholder="Street, City, State, Zip..."
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground ml-1">Permanent Address</label>
+                    <textarea 
+                      disabled={!isEditing}
+                      value={editData.permanentAddress || ''}
+                      onChange={(e) => setEditData({ ...editData, permanentAddress: e.target.value })}
+                      className="w-full h-20 px-3 py-2 bg-muted/20 border border-border rounded-lg text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
+                      placeholder="Street, City, State, Zip..."
+                    />
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'education' && (
+            <div className="space-y-6">
+               <div className="border-b border-border pb-4">
+                  <h2 className="text-lg font-bold">Education & Work</h2>
+                  <p className="text-sm text-muted-foreground">Professional background</p>
+               </div>
+               
+               <div className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground ml-1">Professional Summary</label>
+                    <textarea 
+                      disabled={!isEditing}
+                      value={editData.professionalSummary || ''}
+                      onChange={(e) => setEditData({ ...editData, professionalSummary: e.target.value })}
+                      className="w-full h-24 px-3 py-2 bg-muted/20 border border-border rounded-lg text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
+                      placeholder="Brief overview of your career..."
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Academic Qualifications</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 border border-border rounded-lg bg-muted/10">
+                       <InputField label="Degree" name="eduDegree" />
+                       <InputField label="Institution" name="eduUni" />
+                       <InputField label="Specialization" name="eduBranch" />
+                       <InputField label="CGPA / %" name="eduCgpa" />
+                       <InputField label="Year of Joining" name="eduJoin" type="number" />
+                       <InputField label="Year of Completion" name="eduEnd" type="number" />
+                    </div>
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'identity' && (
+            <div className="space-y-6">
+               <div className="border-b border-border pb-4">
+                  <h2 className="text-lg font-bold">Identity Information</h2>
+                  <p className="text-sm text-muted-foreground">Government documents</p>
+               </div>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="p-5 border border-border rounded-lg bg-muted/10 space-y-4">
+                     <div className="flex items-center gap-2 text-primary">
+                        <ShieldCheck size={18} />
+                        <h3 className="text-sm font-bold">Aadhaar Card</h3>
+                     </div>
+                     <InputField label="Number" name="aadhaarNumber" />
+                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
+                        <CheckCircle2 size={12} /> Verified
+                     </div>
+                  </div>
+                  <div className="p-5 border border-border rounded-lg bg-muted/10 space-y-4">
+                     <div className="flex items-center gap-2 text-primary">
+                        <CreditCard size={18} />
+                        <h3 className="text-sm font-bold">PAN Card</h3>
+                     </div>
+                     <InputField label="Number" name="panNumber" />
+                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600">
+                        <CheckCircle2 size={12} /> Verified
+                     </div>
+                  </div>
+               </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

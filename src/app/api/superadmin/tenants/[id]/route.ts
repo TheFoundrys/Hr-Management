@@ -60,7 +60,7 @@ export async function PATCH(
           [name, subdomain?.toLowerCase(), tenantType, id]
         );
     
-        if (result.rowCount === 0) {
+        if ((result.rowCount || 0) === 0) {
           return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
         }
     

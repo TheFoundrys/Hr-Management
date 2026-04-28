@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Wallet, Loader2, Download, Play, Calendar, User, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { FinancesNav } from '@/components/FinancesNav';
 
 interface PayslipRow {
   id: string;
@@ -110,6 +111,7 @@ export default function PayrollPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-6 space-y-8 animate-in fade-in duration-500">
+      <FinancesNav />
       {/* Header Section */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">

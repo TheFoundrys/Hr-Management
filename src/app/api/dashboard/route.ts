@@ -8,12 +8,12 @@ export async function GET(request: Request) {
     const tenantId = await getTenantId(request);
     // Normalize role and handle 'global_admin' as a SUPER_ADMIN equivalent
     let userRole = (request.headers.get('x-user-role') || 'staff').toUpperCase().replace(/-/g, '_');
-    if (userRole === 'GLOBAL_ADMIN') userRole = 'SUPER_ADMIN'; 
     
     const userId = request.headers.get('x-user-id') || '';
 
     const today = new Date().toISOString().split('T')[0];
     const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const next30Days = new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     // --- PLATFORM ADMIN DASHBOARD (Super Admin / Global Admin) ---
     if (userRole === 'SUPER_ADMIN') {
@@ -61,6 +61,7 @@ export async function GET(request: Request) {
         recentLeavesResult,
         deptResult,
         liveEventsResult,
+        birthdayResult,
       ] = await Promise.all([
         query('SELECT COUNT(*) FROM employees WHERE tenant_id = $1', [tenantId]),
         query('SELECT status FROM attendance WHERE employee_id IN (SELECT id FROM employees WHERE tenant_id = $1) AND date = $2', [tenantId, today]),
@@ -72,6 +73,11 @@ export async function GET(request: Request) {
                JOIN employees e ON a.employee_id = e.id 
                WHERE a.tenant_id = $1 
                ORDER BY a.created_at DESC LIMIT 10`, [tenantId]),
+        query(`SELECT first_name, last_name, employee_id, university_id 
+               FROM employees 
+               WHERE tenant_id = $1 AND is_active = true 
+               AND EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE) 
+               AND EXTRACT(DAY FROM date_of_birth) = EXTRACT(DAY FROM CURRENT_DATE)`, [tenantId]),
       ]);
 
       const totalEmployees = parseInt(empCountResult.rows[0].count);
@@ -106,9 +112,13 @@ export async function GET(request: Request) {
         });
       }
 
+      const tenantTypeResult = await query('SELECT tenant_type FROM tenants WHERE id = $1', [tenantId]);
+      const tenantType = tenantTypeResult.rows[0]?.tenant_type || 'COMPANY';
+
       return NextResponse.json({
         success: true,
         dashboard: {
+          tenantType,
           stats: {
             totalEmployees,
             presentToday: present,
@@ -130,6 +140,63 @@ export async function GET(request: Request) {
             leaveType: (l.type_name || 'General'),
             status: (l.status || 'pending').toLowerCase()
           })),
+          birthdaysToday: birthdayResult.rows.map((e: any) => ({
+            name: `${e.first_name} ${e.last_name}`,
+            employeeId: e.employee_id || e.university_id
+          })),
+          holidays: (await query(`
+            SELECT name, date 
+            FROM holidays 
+            WHERE tenant_id = $1 AND date >= CURRENT_DATE 
+            ORDER BY date ASC LIMIT 5`, [tenantId])).rows,
+          upcomingBirthdays: (await query(`
+            SELECT first_name, last_name, employee_id, university_id, 
+                   EXTRACT(DAY FROM date_of_birth) as day, 
+                   EXTRACT(MONTH FROM date_of_birth) as month
+            FROM employees 
+            WHERE tenant_id = $1 AND is_active = true AND date_of_birth IS NOT NULL
+            AND (
+              (EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(DAY FROM date_of_birth) > EXTRACT(DAY FROM CURRENT_DATE))
+              OR 
+              (EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '1 month') AND EXTRACT(DAY FROM date_of_birth) <= EXTRACT(DAY FROM CURRENT_DATE))
+            )
+            ORDER BY month ASC, day ASC LIMIT 10`, [tenantId])).rows.map((e: any) => ({
+              name: `${e.first_name} ${e.last_name}`,
+              date: `${String(e.day).padStart(2, '0')} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][e.month - 1]}`
+            })),
+          onLeaveToday: (await query(`
+            SELECT 
+              e.first_name || ' ' || e.last_name as name,
+              a.status
+            FROM employees e
+            LEFT JOIN attendance a ON e.id = a.employee_id AND a.date = CURRENT_DATE
+            WHERE e.tenant_id = $1 AND e.is_active = true
+            AND (a.status IS NULL OR a.status NOT IN ('PRESENT', 'LATE'))
+            LIMIT 20`, [tenantId])).rows.map((e: any) => ({
+              name: e.name,
+              avatar: e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+              status: e.status === 'ON_LEAVE' ? 'ON-LEAVE' : 'ABSENT'
+            })),
+          praises: (await query(`
+            SELECT p.*, 
+                   f.first_name || ' ' || f.last_name as from, 
+                   t.first_name || ' ' || t.last_name as to,
+                   (SELECT COUNT(*) FROM praise_likes pl WHERE pl.praise_id = p.id) as likes_count
+            FROM praises p
+            JOIN employees f ON p.from_employee_id = f.id
+            JOIN employees t ON p.to_employee_id = t.id
+            WHERE p.tenant_id = $1
+            ORDER BY p.created_at DESC LIMIT 10`, [tenantId])).rows.map((p: any) => ({
+              id: p.id,
+              from: p.from,
+              to: p.to,
+              title: p.title,
+              message: p.message,
+              timestamp: new Date(p.created_at).toLocaleDateString(),
+              reactions: parseInt(p.likes_count) || 0,
+              comments: 0
+            })),
+          allEmployees: (await query('SELECT id, first_name, last_name FROM employees WHERE tenant_id = $1 AND is_active = true ORDER BY first_name ASC', [tenantId])).rows,
         },
       });
     }
@@ -149,9 +216,18 @@ export async function GET(request: Request) {
        return NextResponse.json({ success: true, dashboard: { stats: { presentDays: 0, absentDays: 0, lateDays: 0, leaveDays: 0, pendingLeaves: 0 }, attendance: [], leaves: [] } });
     }
 
-    const [attResult, leaveResult] = await Promise.all([
+    const [attResult, leaveResult, birthdayResult, balancesResult] = await Promise.all([
       query('SELECT * FROM attendance WHERE employee_id = $1 AND date >= $2 ORDER BY date DESC', [employee.id, firstOfMonth]),
       query('SELECT l.*, lt.name as type_name FROM leave_requests l JOIN leave_types lt ON l.leave_type_id = lt.id WHERE l.employee_id = $1 ORDER BY l.created_at DESC LIMIT 10', [employee.id]),
+      query(`SELECT first_name, last_name, employee_id, university_id 
+             FROM employees 
+             WHERE tenant_id = $1 AND is_active = true 
+             AND EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE) 
+             AND EXTRACT(DAY FROM date_of_birth) = EXTRACT(DAY FROM CURRENT_DATE)`, [tenantId]),
+      query(`SELECT lt.name, lb.allocated_days - lb.used_days as remaining 
+             FROM leave_balances lb 
+             JOIN leave_types lt ON lb.leave_type_id = lt.id 
+             WHERE lb.employee_id = $1`, [employee.id]),
     ]);
 
     const myAttendance = attResult.rows;
@@ -177,9 +253,66 @@ export async function GET(request: Request) {
           presentDays: myAttendance.filter((a) => a.status?.toLowerCase() === 'present' || a.status?.toLowerCase() === 'late').length,
           absentDays: myAttendance.filter((a) => a.status?.toLowerCase() === 'absent').length,
           lateDays: myAttendance.filter((a) => a.status?.toLowerCase() === 'late').length,
-          leaveDays: myAttendance.filter((a) => ['on-leave', 'leave', 'on duty', 'od'].includes(a.status?.toLowerCase())).length,
           pendingLeaves: myLeaves.filter((l) => l.status?.toLowerCase() === 'pending').length,
         },
+        birthdaysToday: birthdayResult.rows.map((e: any) => ({
+          name: `${e.first_name} ${e.last_name}`,
+          employeeId: e.employee_id || e.university_id
+        })),
+        leaveBalances: balancesResult.rows,
+        holidays: (await query(`
+          SELECT name, date 
+          FROM holidays 
+          WHERE tenant_id = $1 AND date >= CURRENT_DATE 
+          ORDER BY date ASC LIMIT 5`, [tenantId])).rows,
+        upcomingBirthdays: (await query(`
+          SELECT first_name, last_name, employee_id, university_id, 
+                 EXTRACT(DAY FROM date_of_birth) as day, 
+                 EXTRACT(MONTH FROM date_of_birth) as month
+          FROM employees 
+          WHERE tenant_id = $1 AND is_active = true AND date_of_birth IS NOT NULL
+          AND (
+            (EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(DAY FROM date_of_birth) > EXTRACT(DAY FROM CURRENT_DATE))
+            OR 
+            (EXTRACT(MONTH FROM date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '1 month') AND EXTRACT(DAY FROM date_of_birth) <= EXTRACT(DAY FROM CURRENT_DATE))
+          )
+          ORDER BY month ASC, day ASC LIMIT 10`, [tenantId])).rows.map((e: any) => ({
+            name: `${e.first_name} ${e.last_name}`,
+            date: `${String(e.day).padStart(2, '0')} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][e.month - 1]}`
+          })),
+        onLeaveToday: (await query(`
+          SELECT 
+            e.first_name || ' ' || e.last_name as name,
+            a.status
+          FROM employees e
+          LEFT JOIN attendance a ON e.id = a.employee_id AND a.date = CURRENT_DATE
+          WHERE e.tenant_id = $1 AND e.is_active = true
+          AND (a.status IS NULL OR a.status NOT IN ('PRESENT', 'LATE'))
+          LIMIT 20`, [tenantId])).rows.map((e: any) => ({
+            name: e.name,
+            avatar: e.name.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+            status: e.status === 'ON_LEAVE' ? 'ON-LEAVE' : 'ABSENT'
+          })),
+        praises: (await query(`
+          SELECT p.*, 
+                 f.first_name || ' ' || f.last_name as from, 
+                 t.first_name || ' ' || t.last_name as to,
+                 (SELECT COUNT(*) FROM praise_likes pl WHERE pl.praise_id = p.id) as likes_count
+          FROM praises p
+          JOIN employees f ON p.from_employee_id = f.id
+          JOIN employees t ON p.to_employee_id = t.id
+          WHERE p.tenant_id = $1
+          ORDER BY p.created_at DESC LIMIT 10`, [tenantId])).rows.map((p: any) => ({
+            id: p.id,
+            from: p.from,
+            to: p.to,
+            title: p.title,
+            message: p.message,
+            timestamp: new Date(p.created_at).toLocaleDateString(),
+            reactions: parseInt(p.likes_count) || 0,
+            comments: 0
+          })),
+        allEmployees: (await query('SELECT id, first_name, last_name FROM employees WHERE tenant_id = $1 AND is_active = true ORDER BY first_name ASC', [tenantId])).rows,
       },
     });
   } catch (error) {

@@ -1,264 +1,410 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  UserCheck, CalendarOff, Clock, AlertCircle,
-  CalendarDays, Activity, Trophy, Star, Zap, Medal
+  ChevronLeft, ChevronRight, Cake, PartyPopper, 
+  Users, MessageSquare, ThumbsUp, MoreHorizontal,
+  Clock, Calendar, Monitor, MousePointer2,
+  Plus, Award, Heart, Zap, Star, Trophy, Medal,
+  Activity, TrendingUp, UserCheck, CalendarOff, AlertCircle
 } from 'lucide-react';
 
 export default function StaffDashboard({ data }: { data: any }) {
-  const stats = data?.stats || {
-    presentDays: 0,
-    leaveDays: 0,
-    pendingLeaves: 0,
-    lateDays: 0
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('birthdays');
+  const [isPraiseModalOpen, setIsPraiseModalOpen] = useState(false);
+  const [praiseForm, setPraiseForm] = useState({ toEmployeeId: '', title: '', message: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [localPraises, setLocalPraises] = useState(data?.praises || []);
+
+  useEffect(() => {
+    setLocalPraises(data?.praises || []);
+  }, [data?.praises]);
+
+  const handleLike = async (praiseId: string) => {
+    try {
+      const res = await fetch('/api/praises/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ praiseId })
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setLocalPraises(localPraises.map((p: any) => {
+          if (p.id === praiseId) {
+            return { ...p, reactions: resData.liked ? p.reactions + 1 : p.reactions - 1 };
+          }
+          return p;
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle like');
+    }
   };
 
-  const staffCards = [
-    { label: 'Ontime', value: stats.presentDays, icon: UserCheck, color: 'text-emerald-500 bg-emerald-500/10' },
-    { label: 'Leaves Taken', value: stats.leaveDays, icon: CalendarOff, color: 'text-primary bg-primary/10' },
-    { label: 'Pending', value: stats.pendingLeaves, icon: Clock, color: 'text-amber-500 bg-amber-500/10' },
-    { label: 'Late', value: stats.lateDays, icon: AlertCircle, color: 'text-danger bg-danger/10' },
-  ];
+  const handleComment = () => {
+    alert("Comments feature coming soon!");
+  };
 
-  // Real Gamification Logic (Weekend-Aware)
+  const handlePraiseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/praises', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(praiseForm)
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setIsPraiseModalOpen(false);
+        setPraiseForm({ toEmployeeId: '', title: '', message: '' });
+        window.location.reload(); // Quick refresh to show new praise
+      }
+    } catch (err) {
+      alert('Failed to post praise');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const stats = data?.stats || { presentDays: 0, leaveDays: 0, pendingLeaves: 0, lateDays: 0 };
+  const holidays = data?.holidays || [];
+  const onLeaveToday = data?.onLeaveToday || [];
+  const leaveBalances = data?.leaveBalances || [];
+  const birthdays = data?.birthdaysToday || [];
+  const praises = data?.praises || [];
+  const upcomingBirthdays = data?.upcomingBirthdays || [];
+
+  // --- Gamification Logic ---
   const calculateStreak = () => {
     const attendance = data?.attendance || [];
     if (!attendance.length) return 0;
-
-    // Sort by date descending
     const sorted = [...attendance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
     let currentStreak = 0;
-    const today = new Date();
-
-    // Helper to check if a date is a weekend
-    const isWeekend = (date: Date) => {
-      const day = date.getDay();
-      return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
-    };
-
-    // Helper to get the previous working day
-    const getPrevWorkingDay = (date: Date) => {
-      const prev = new Date(date);
-      prev.setDate(prev.getDate() - 1);
-      while (isWeekend(prev)) {
-        prev.setDate(prev.getDate() - 1);
-      }
-      return prev.toISOString().split('T')[0];
-    };
-
-    // Start checking from the most recent record
-    const latestRecordDate = new Date(sorted[0].date);
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = new Date(today.getTime() - 86400000).toISOString().split('T')[0];
-
-    // If today is Mon/Sun/Sat, and last record was Friday, it's still an active streak
-    let expectedLastDate = todayStr;
-    if (isWeekend(today)) {
-      expectedLastDate = getPrevWorkingDay(today);
-    } else if (today.getDay() === 1) { // Monday
-      // If no record today, Friday is also acceptable
-      const lastDateStr = sorted[0].date.split('T')[0];
-      if (lastDateStr !== todayStr && lastDateStr !== yesterdayStr) {
-        // If today is Monday and last record was not today or Sunday, check if it was Friday
-        const friday = new Date(today);
-        friday.setDate(friday.getDate() - 3);
-        if (lastDateStr !== friday.toISOString().split('T')[0]) return 0;
-      }
-    } else {
-      const lastDateStr = sorted[0].date.split('T')[0];
-      if (lastDateStr !== todayStr && lastDateStr !== yesterdayStr) return 0;
-    }
-
-    for (let i = 0; i < sorted.length; i++) {
-      const status = sorted[i].status?.toUpperCase();
-      if (status === 'PRESENT' || status === 'LATE') {
-        currentStreak++;
-
-        // Check if next record is the previous working day
-        if (i + 1 < sorted.length) {
-          const currentDate = new Date(sorted[i].date);
-          const nextDate = new Date(sorted[i + 1].date);
-          const expectedPrevDate = getPrevWorkingDay(currentDate);
-          const actualNextDate = nextDate.toISOString().split('T')[0];
-
-          if (actualNextDate !== expectedPrevDate) {
-            // Check if maybe they worked on a weekend?
-            const diffDays = Math.round((currentDate.getTime() - nextDate.getTime()) / (1000 * 3600 * 24));
-            if (diffDays > 1 && !isWeekend(new Date(currentDate.getTime() - 86400000))) break;
-          }
-        }
-      } else {
-        break;
-      }
+    for (const record of sorted) {
+      const status = record.status?.toUpperCase();
+      if (status === 'PRESENT' || status === 'LATE') currentStreak++;
+      else break;
     }
     return currentStreak;
   };
 
   const streak = calculateStreak();
-  const level = Math.floor(stats.presentDays / 15) + 1; // Faster leveling for demo
-  const xpInCurrentLevel = Math.min(100, Math.round(((stats.presentDays % 15) / 15) * 100));
+  const level = Math.floor(stats.presentDays / 15) + 1;
+  const xpProgress = Math.min(100, Math.round(((stats.presentDays % 15) / 15) * 100));
 
   const badges = [
-    { id: 'early', label: 'Early Bird', icon: Zap, active: stats.lateDays < 2 && stats.presentDays > 5, desc: 'Punctual with minimal late marks' },
-    { id: 'consistent', label: 'Consistent', icon: Star, active: stats.presentDays > 50, desc: 'Over 50 days of active service' },
-    { id: 'planner', label: 'Planner', icon: CalendarDays, active: stats.leaveDays > 5, desc: 'Efficiently planned time off' },
-    { id: 'master', label: 'Pro', icon: Trophy, active: level > 3, desc: 'Reached Level 4 and beyond' },
+    { id: 'early', label: 'Early Bird', icon: Zap, active: stats.lateDays < 2 && stats.presentDays > 5 },
+    { id: 'consistent', label: 'Consistent', icon: Star, active: stats.presentDays > 20 },
+    { id: 'planner', label: 'Planner', icon: Calendar, active: stats.leaveDays > 0 },
+    { id: 'master', label: 'Pro', icon: Trophy, active: level > 1 },
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {staffCards.map((card, i) => (
-          <div key={i} className="bg-card border border-border p-5 rounded-2xl shadow-soft">
-            <div className="flex items-center gap-3 mb-3">
-              <div className={`p-2 rounded-xl ${card.color}`}>
-                <card.icon className="w-4 h-4" />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground">{card.value}</p>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500 pb-10">
+      
+      {/* LEFT COLUMN - Utility & Gamification (4/12) */}
+      <div className="lg:col-span-4 space-y-6">
+        
+        {/* Time & Clock In */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+             <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Attendance Clock</h3>
+             <div className="flex items-center gap-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[9px] font-black uppercase tracking-tighter border border-primary/20">
+               <Zap size={10} className="fill-current" /> {streak} Day Streak
+             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Gamification Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Progress & Level */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-            <Trophy className="w-32 h-32 text-primary" />
+          <div className="text-3xl font-black tracking-tighter text-foreground mb-6">
+            {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
           </div>
-
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary text-primary-foreground rounded-full text-[10px] font-black uppercase tracking-widest">
-                Career Milestone
-              </div>
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-6xl font-black text-foreground">{level}</h2>
-                <span className="text-lg font-bold text-muted-foreground uppercase tracking-widest">Level</span>
-              </div>
-              <p className="text-sm text-muted-foreground max-w-xs font-medium italic">"Your attendance consistency is building your professional track record."</p>
-            </div>
-
-            <div className="flex-1 space-y-6">
-              <div className="flex justify-between items-end">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Experience Progress</p>
-                  <p className="text-2xl font-bold text-foreground">{xpInCurrentLevel}% <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest ml-1">to milestone {level + 1}</span></p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Active Streak</p>
-                  <div className="flex items-center gap-1.5 justify-end">
-                    <Zap className="w-4 h-4 text-emerald-500 fill-emerald-500" />
-                    <span className="text-xl font-bold text-foreground">{streak} Days</span>
-                  </div>
-                </div>
-              </div>
-              <div className="h-4 bg-muted border border-border rounded-full overflow-hidden p-0.5">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(37,99,235,0.5)]"
-                  style={{ width: `${xpInCurrentLevel}%` }}
-                />
-              </div>
-            </div>
-          </div>
+          <button className="w-full bg-primary text-secondary py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary/10 hover:scale-[1.01] transition-all flex items-center justify-center gap-2 mb-3">
+            <MousePointer2 size={12} /> Web Clock-In
+          </button>
+          <p className="text-[9px] text-center font-bold text-muted-foreground uppercase tracking-widest">
+            {currentTime.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
         </div>
 
-        {/* Achievement Badges */}
-        <div className="bg-card border border-border p-8 rounded-[2rem] shadow-soft">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Achievements</h2>
-            <div className="w-8 h-8 bg-muted rounded-xl flex items-center justify-center">
-              <Medal className="w-4 h-4 text-muted-foreground" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        {/* Level Progression */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+           <div className="flex justify-between items-end mb-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">Current Status</p>
+                <h4 className="text-xl font-black text-foreground">Level {level}</h4>
+              </div>
+              <span className="text-[10px] font-black text-primary uppercase">{xpProgress}% to Level {level + 1}</span>
+           </div>
+           <div className="h-2 bg-muted rounded-full overflow-hidden mb-3 border border-border">
+              <div 
+                className="h-full bg-primary rounded-full transition-all duration-1000" 
+                style={{ width: `${xpProgress}%` }} 
+              />
+           </div>
+           <p className="text-[9px] text-muted-foreground font-medium italic">
+             Complete {15 - (stats.presentDays % 15)} more present days to level up!
+           </p>
+        </div>
+
+        {/* Achievements */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">Unlocked Badges</h3>
+          <div className="grid grid-cols-4 gap-2">
             {badges.map((badge) => (
-              <div
-                key={badge.id}
-                className={`flex flex-col items-center justify-center p-4 rounded-3xl border transition-all duration-300 gap-3 text-center
-                  ${badge.active
-                    ? 'bg-primary/5 border-primary/20 grayscale-0'
-                    : 'bg-muted/50 border-border grayscale opacity-50'}
+              <div 
+                key={badge.id} 
+                title={badge.label}
+                className={`aspect-square rounded-lg flex items-center justify-center transition-all border
+                  ${badge.active ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-muted/30 border-transparent text-muted-foreground opacity-30 grayscale'}
                 `}
               >
-                <div className={`p-3 rounded-2xl ${badge.active ? 'bg-primary text-primary-foreground shadow-lg' : 'bg-muted text-muted-foreground'}`}>
-                  <badge.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-tight text-foreground">{badge.label}</p>
-                  {badge.active && <p className="text-[8px] text-primary font-bold uppercase tracking-widest mt-0.5">Unlocked</p>}
-                </div>
+                <badge.icon size={18} />
               </div>
             ))}
           </div>
         </div>
+
+        {/* Holiday Banner - Simplified */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 relative overflow-hidden group">
+           <div className="relative z-10">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">Next Holiday</h3>
+              <h2 className="text-xl font-black text-foreground tracking-tight">{holidays[0]?.name || 'Stay Tuned'}</h2>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">
+                {holidays[0]?.date ? new Date(holidays[0].date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' }) : 'Calendar Update Pending'}
+              </p>
+           </div>
+           <Calendar className="absolute -right-4 -bottom-4 w-24 h-24 text-primary/10 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+        </div>
+
+        {/* Leave Balances - Simplified */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Leave Balances</h3>
+            <button className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">View All</button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {leaveBalances.map((lb: any, i: number) => (
+              <div key={i} className="bg-muted/30 border border-border p-3 rounded-lg text-center">
+                <p className="text-sm font-black text-foreground leading-none">{lb.remaining}</p>
+                <p className="text-[7px] font-black text-muted-foreground uppercase mt-1 tracking-tighter truncate">{lb.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance Log */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-soft">
-          <div className="p-5 border-b border-border bg-muted/30 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Recent Attendance</h2>
+      {/* RIGHT COLUMN - Feed & Social (8/12) */}
+      <div className="lg:col-span-8 space-y-6">
+        
+        {/* Off-Duty Today */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">Off-Duty Today</h3>
+            <div className="flex flex-wrap gap-2">
+            {onLeaveToday.length > 0 ? onLeaveToday.map((emp: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/5 border border-rose-500/10 rounded-xl">
+                <div className="w-6 h-6 rounded-lg bg-rose-500 text-white flex items-center justify-center font-bold text-[8px] shrink-0">
+                  {emp.avatar || emp.name?.[0]}
+                </div>
+                <span className="text-[10px] font-bold text-foreground uppercase tracking-tight whitespace-nowrap">{emp.name}</span>
+              </div>
+            )) : (
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60 italic">Full House! Everyone is in today.</p>
+            )}
           </div>
-          <div className="divide-y divide-border">
-            {(data?.attendance || []).slice(0, 5).map((att: any, i: number) => (
-              <div key={i} className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:bg-muted/50 transition-colors gap-3 sm:gap-0">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                  <p className="text-xs font-bold text-foreground">{new Date(att.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-mono">
-                    <div className="flex flex-col">
-                      <span className="uppercase text-[8px] tracking-widest text-slate-400">In</span>
-                      <span>{att.checkIn ? new Date(att.checkIn).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '--:--'}</span>
-                    </div>
-                    {att.checkOut && (
-                      <div className="flex flex-col">
-                        <span className="uppercase text-[8px] tracking-widest text-slate-400">Out</span>
-                        <span>{new Date(att.checkOut).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}</span>
+        </div>
+
+        {/* Celebrations Tabs - Simplified */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+           <div className="flex border-b border-border bg-muted/20 overflow-x-auto no-scrollbar">
+              {['birthdays', 'anniversaries', 'joinees'].map((tab) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 min-w-[120px] px-4 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === tab ? 'border-primary text-primary bg-background' : 'border-transparent text-muted-foreground hover:bg-background/50'}`}
+                >
+                  {tab === 'birthdays' ? `${birthdays.length} Birthdays` : `0 ${tab}`}
+                </button>
+              ))}
+           </div>
+           
+           <div className="p-4 lg:p-6">
+              {activeTab === 'birthdays' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                   <div>
+                     <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-4 border-l-2 border-primary pl-2">Today</h4>
+                     <div className="space-y-4">
+                        {birthdays.length > 0 ? birthdays.map((b: any, i: number) => (
+                          <div key={i} className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-600 flex items-center justify-center font-black text-sm border border-cyan-500/20 shrink-0">
+                                {b.name?.[0]}
+                             </div>
+                             <div>
+                               <p className="text-xs font-black text-foreground uppercase tracking-tight">{b.name}</p>
+                               <button className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">Send Wish</button>
+                             </div>
+                          </div>
+                        )) : (
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase italic opacity-60">No birthdays today</p>
+                        )}
+                     </div>
+                   </div>
+
+                   <div>
+                     <h4 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-4 border-l-2 border-primary pl-2">Upcoming</h4>
+                     <div className="space-y-4">
+                        {upcomingBirthdays.length > 0 ? upcomingBirthdays.slice(0, 3).map((ub: any, i: number) => (
+                          <div key={i} className="flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-lg bg-muted border border-border flex items-center justify-center font-black text-[10px] text-muted-foreground shrink-0">
+                               {ub.name?.[0]}
+                             </div>
+                             <div>
+                               <p className="text-[10px] font-bold text-foreground uppercase tracking-tight">{ub.name}</p>
+                               <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{ub.date}</p>
+                             </div>
+                          </div>
+                        )) : (
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase italic opacity-60">None in the next 30 days</p>
+                        )}
+                     </div>
+                   </div>
+                </div>
+              )}
+           </div>
+        </div>
+
+        {/* Praise / Social Feed - Simplified Cards */}
+        {/* Quick Actions / Praise */}
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex items-center justify-between">
+           <div className="flex items-center gap-3">
+             <div className="p-2 bg-primary/10 text-primary rounded-lg"><MessageSquare size={16} /></div>
+             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recognize someone today?</p>
+           </div>
+           <button 
+             onClick={() => setIsPraiseModalOpen(true)}
+             className="px-4 py-2 bg-primary text-secondary rounded-xl flex items-center gap-2 hover:bg-primary/90 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest"
+           >
+             <Plus size={14} /> Add Praise
+           </button>
+        </div>
+        <div className="space-y-4">
+           {localPraises.map((p: any) => (
+             <div key={p.id} className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                   <div className="flex gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs border border-primary/20 italic">
+                        {p.from ? p.from.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '👤'}
                       </div>
-                    )}
-                  </div>
+                      <div>
+                         <p className="text-xs font-bold text-foreground">
+                            <span className="text-primary">{p.from}</span> praised <span className="text-primary">{p.to}</span>
+                         </p>
+                         <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{p.timestamp}</p>
+                      </div>
+                   </div>
+                   <button className="p-1.5 text-muted-foreground hover:bg-muted rounded-full transition-all">
+                      <MoreHorizontal size={14} />
+                   </button>
                 </div>
-                <div className="flex items-center justify-between w-full sm:w-auto">
-                  <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${att.status?.toLowerCase() === 'present' ? 'text-emerald-500 bg-emerald-500/10' :
-                    att.status?.toLowerCase() === 'late' ? 'text-amber-500 bg-amber-500/10' : 'text-danger bg-danger/10'
-                    }`}>
-                    {att.status?.toUpperCase() === 'PRESENT' ? 'ONTIME' : att.status}
-                  </span>
+
+                <div className="bg-muted/20 border border-border rounded-lg p-4 flex items-start gap-4 mb-4">
+                   <Award size={18} className="text-primary mt-0.5" />
+                   <div>
+                      <h4 className="text-xs font-black text-foreground uppercase tracking-tight leading-none">{p.title}</h4>
+                      <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed font-medium italic opacity-90">
+                         "{p.message}"
+                      </p>
+                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-border">
+                   <div className="flex gap-4">
+                      <button 
+                        onClick={() => handleLike(p.id)}
+                        className="flex items-center gap-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest hover:text-primary transition-all active:scale-95"
+                      >
+                         <ThumbsUp size={12} /> Like
+                      </button>
+                      <button 
+                        onClick={handleComment}
+                        className="flex items-center gap-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest hover:text-primary transition-all active:scale-95"
+                      >
+                         <MessageSquare size={12} /> Comment
+                      </button>
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <div className="flex -space-x-1">
+                         <div className="w-4 h-4 rounded-full bg-rose-500 text-white border-2 border-background flex items-center justify-center"><Heart size={6} className="fill-current" /></div>
+                         <div className="w-4 h-4 rounded-full bg-blue-500 text-white border-2 border-background flex items-center justify-center"><ThumbsUp size={6} className="fill-current" /></div>
+                      </div>
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">{p.reactions} • {p.comments}</span>
+                   </div>
+                </div>
+             </div>
+           ))}
         </div>
 
-        {/* Leave Requests */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-soft">
-          <div className="p-5 border-b border-border bg-muted/30 flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-primary" />
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Leave Requests</h2>
-          </div>
-          <div className="divide-y divide-border">
-            {(data?.leaves || []).slice(0, 5).map((leave: any, i: number) => (
-              <div key={i} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                <div>
-                  <p className="text-xs font-bold text-foreground uppercase tracking-tight">{leave.leaveType}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}</p>
+      </div>
+
+      {/* Praise Modal */}
+      {isPraiseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl scale-100 animate-in zoom-in duration-200">
+             <div className="p-6 border-b border-border flex justify-between items-center bg-muted/20 rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-primary/10 text-primary rounded-lg"><Award size={18} /></div>
+                   <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Give Praise</h2>
                 </div>
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${leave.status === 'approved' ? 'text-emerald-500 bg-emerald-500/10' :
-                  leave.status === 'rejected' ? 'text-danger bg-danger/10' : 'text-amber-500 bg-amber-500/10'
-                  }`}>
-                  {leave.status}
-                </span>
-              </div>
-            ))}
+                <button onClick={() => setIsPraiseModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><Plus size={20} className="rotate-45" /></button>
+             </div>
+             <form onSubmit={handlePraiseSubmit} className="p-6 space-y-4">
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Who do you want to recognize?</label>
+                   <select 
+                     required
+                     className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl focus:ring-2 ring-primary/20 outline-none text-sm font-medium appearance-none"
+                     value={praiseForm.toEmployeeId}
+                     onChange={(e) => setPraiseForm({ ...praiseForm, toEmployeeId: e.target.value })}
+                   >
+                     <option value="">Select Employee</option>
+                     {(data?.allEmployees || []).map((emp: any) => (
+                       <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
+                     ))}
+                   </select>
+                </div>
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Recognition Title</label>
+                   <input 
+                     required
+                     type="text" 
+                     placeholder="e.g. Outstanding Support, Great Team Player"
+                     className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl focus:ring-2 ring-primary/20 outline-none text-sm font-medium"
+                     value={praiseForm.title}
+                     onChange={(e) => setPraiseForm({ ...praiseForm, title: e.target.value })}
+                   />
+                </div>
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Your Message</label>
+                   <textarea 
+                     required
+                     rows={4}
+                     placeholder="Tell them why they're awesome..."
+                     className="w-full px-4 py-3 bg-muted/30 border border-border rounded-xl focus:ring-2 ring-primary/20 outline-none text-sm font-medium resize-none"
+                     value={praiseForm.message}
+                     onChange={(e) => setPraiseForm({ ...praiseForm, message: e.target.value })}
+                   />
+                </div>
+                <button 
+                  disabled={submitting}
+                  type="submit"
+                  className="w-full bg-primary text-secondary py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                >
+                  {submitting ? 'Posting...' : 'Share Praise'} <PartyPopper size={14} />
+                </button>
+             </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

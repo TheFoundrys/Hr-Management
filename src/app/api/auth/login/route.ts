@@ -84,11 +84,23 @@ export async function POST(request: Request) {
       departmentId: user.department_id,
     });
 
+    // Fetch tenant details
+    let tenantName = 'HR Portal';
+    let tenantType = 'EDUCATION';
+    if (user.tenant_id) {
+      const tenantRes = await query('SELECT name, tenant_type FROM tenants WHERE id = $1', [user.tenant_id]);
+      if (tenantRes.rows.length > 0) {
+        tenantName = tenantRes.rows[0].name;
+        tenantType = tenantRes.rows[0].tenant_type;
+      }
+    }
+
     const response = NextResponse.json({
       success: true,
       user: {
         id: user.id, name: user.name, email: user.email,
         role: user.role, tenantId: user.tenant_id,
+        tenantName, tenantType,
         employeeId: user.employee_id, departmentId: user.department_id,
       },
     });

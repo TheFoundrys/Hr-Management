@@ -92,9 +92,34 @@ export async function GET(request: Request) {
 
     const employee = {
       ...emp,
-      name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+      name: emp.display_name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
       firstName: emp.first_name,
+      middleName: emp.middle_name,
       lastName: emp.last_name,
+      displayName: emp.display_name,
+      gender: emp.gender,
+      dateOfBirth: emp.date_of_birth,
+      maritalStatus: emp.marital_status,
+      bloodGroup: emp.blood_group,
+      physicallyHandicapped: emp.physically_handicapped,
+      nationality: emp.nationality,
+      personalEmail: emp.personal_email,
+      workPhone: emp.work_phone,
+      residencePhone: emp.residence_phone,
+      address: emp.address,
+      permanentAddress: emp.permanent_address,
+      professionalSummary: emp.professional_summary,
+      aadhaarNumber: emp.aadhaar_number,
+      panNumber: emp.pan_number,
+      eduDegree: emp.edu_degree,
+      eduUni: emp.edu_uni,
+      eduBranch: emp.edu_branch,
+      eduCgpa: emp.edu_cgpa,
+      eduJoin: emp.edu_join,
+      eduEnd: emp.edu_end,
+      education: emp.education || [],
+      experience: emp.experience || [],
+      identityInfo: emp.identity_info || {},
       employee_id: emp.employee_id,
       university_id: emp.university_id,
       department: emp.department_name || 'N/A',
@@ -115,5 +140,86 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('SYSTEM ERROR [Profile Resolution]:', error);
     return NextResponse.json({ error: 'Internal system fault resolution failed.' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const tenantId = await getTenantId(request);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+    const body = await request.json();
+    
+    // Whitelist of allowed fields for user self-edit
+    const allowedFields: Record<string, string> = {
+      firstName: 'first_name',
+      middleName: 'middle_name',
+      lastName: 'last_name',
+      displayName: 'display_name',
+      gender: 'gender',
+      dateOfBirth: 'date_of_birth',
+      maritalStatus: 'marital_status',
+      bloodGroup: 'blood_group',
+      physicallyHandicapped: 'physically_handicapped',
+      nationality: 'nationality',
+      personalEmail: 'personal_email',
+      phone: 'phone',
+      workPhone: 'work_phone',
+      residencePhone: 'residence_phone',
+      address: 'address',
+      permanentAddress: 'permanent_address',
+      professionalSummary: 'professional_summary',
+      aadhaarNumber: 'aadhaar_number',
+      panNumber: 'pan_number',
+      eduDegree: 'edu_degree',
+      eduUni: 'edu_uni',
+      eduBranch: 'edu_branch',
+      eduCgpa: 'edu_cgpa',
+      eduJoin: 'edu_join',
+      eduEnd: 'edu_end',
+      education: 'education',
+      experience: 'experience',
+      identityInfo: 'identity_info'
+    };
+
+    const updates: string[] = [];
+    const values: any[] = [];
+    let i = 1;
+
+    for (const [key, value] of Object.entries(body)) {
+      if (allowedFields[key]) {
+        updates.push(`${allowedFields[key]} = $${i++}`);
+        // Handle JSONB fields
+        if (['education', 'experience', 'identityInfo'].includes(key)) {
+          values.push(JSON.stringify(value));
+        } else {
+          values.push(value);
+        }
+      }
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'No valid fields provided' }, { status: 400 });
+    }
+
+    values.push(payload.email, tenantId);
+    const queryStr = `UPDATE employees SET ${updates.join(', ')}, updated_at = NOW() 
+                      WHERE email = $${i++} AND tenant_id = $${i++} RETURNING id`;
+
+    const result = await query(queryStr, values);
+
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Employee record not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

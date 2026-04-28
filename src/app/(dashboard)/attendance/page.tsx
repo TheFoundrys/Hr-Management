@@ -1,6 +1,20 @@
 'use client';
+
 import { useEffect, useState } from 'react';
-import { Clock, Filter, Calendar, LogIn, LogOut, Timer, User, ChevronRight } from 'lucide-react';
+import { 
+  Clock, 
+  Filter, 
+  Calendar, 
+  LogIn, 
+  LogOut, 
+  Timer, 
+  User, 
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  CalendarDays
+} from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { hasPermission } from '@/lib/auth/rbac';
 
@@ -53,137 +67,205 @@ export default function AttendancePage() {
   const clock = async () => {
     if (!user) return;
     const res = await fetch('/api/attendance/ingest', {
-      method: 'POST', body: JSON.stringify({ sourceType: 'web', employeeId: user.employeeId, tenantId: user.tenantId })
+      method: 'POST', 
+      body: JSON.stringify({ 
+        sourceType: 'web', 
+        employeeId: user.employeeId, 
+        tenantId: user.tenantId 
+      })
     });
-    if ((await res.json()).success) fetchRecords();
+    const data = await res.json();
+    if (data.success) fetchRecords();
   };
 
   const fmt = (t: string) => t ? new Date(t).toLocaleTimeString('en-IN', { 
     hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' 
   }) : '—';
 
+  const getStatusBadge = (status: string) => {
+    const s = status?.toUpperCase();
+    const styles = {
+      PRESENT: 'bg-green-50 text-green-700 border-green-100',
+      LATE: 'bg-amber-50 text-amber-700 border-amber-100',
+      ABSENT: 'bg-red-50 text-red-700 border-red-100',
+      ON_LEAVE: 'bg-blue-50 text-blue-700 border-blue-100',
+    }[s] || 'bg-slate-50 text-slate-700 border-slate-100';
+
+    return (
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${styles}`}>
+        {s === 'PRESENT' ? 'Ontime' : s?.replace('_', ' ')}
+      </span>
+    );
+  };
+
   return (
-    <div className="max-w-6xl mx-auto py-6 px-6 space-y-6 animate-in fade-in duration-500">
-      {/* Clean Header */}
-      <header className="flex items-center justify-between gap-6 border-b border-border pb-6">
+    <div className="w-full py-8 px-6 space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
-            <Clock size={28} className="text-primary" /> Attendance
-          </h1>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em] mt-2 pl-1">
-            {new Date(date).toLocaleDateString('en-IN', { dateStyle: 'full' })}
+          <h1 className="text-2xl font-semibold text-foreground">Attendance</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isAdmin ? 'Monitor team attendance' : 'View your attendance logs and stats'}
+            <span className="mx-2">•</span>
+            {new Date(date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
           </p>
         </div>
-
-        <div className="flex gap-3">
-          {!isAdmin && date === new Date().toISOString().split('T')[0] && mode !== 'BIOMETRIC' && (
-            <button onClick={clock} className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-primary/10">
-              Clock In/Out
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Structured Stat Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Ontime', id: 'PRESENT', color: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/10' },
-          { label: 'Late', id: 'LATE', color: 'text-amber-500 bg-amber-500/5 border-amber-500/10' },
-          { label: 'Absent', id: 'ABSENT', color: 'text-rose-500 bg-rose-500/5 border-rose-500/10' },
-          { label: 'On Leave', id: 'ON_LEAVE', color: 'text-primary bg-primary/5 border-primary/10' }
-        ].map(s => (
-          <div key={s.id} className={`px-5 py-4 rounded-2xl border flex flex-col gap-1 ${s.color}`}>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">{s.label}</span>
-            <span className="text-2xl font-black">{records.filter(r => r.status?.toUpperCase() === s.id).length}</span>
-          </div>
-        ))}
+        {!isAdmin && date === new Date().toISOString().split('T')[0] && mode !== 'BIOMETRIC' && (
+          <button 
+            onClick={clock}
+            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm active:scale-95"
+          >
+            <Clock size={18} />
+            Clock In/Out
+          </button>
+        )}
       </div>
 
-      {/* Filter Row */}
-      <div className="flex items-center gap-6 bg-muted/30 p-3 rounded-2xl border border-border">
-        <div className="flex items-center gap-2 text-muted-foreground ml-2">
-          <Filter size={16} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Filter By</span>
+      {/* Stats Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-green-500/10 text-green-600 rounded-xl">
+            <CheckCircle2 size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Present</p>
+            <p className="text-2xl font-bold text-foreground">{records.filter(r => r.status?.toUpperCase() === 'PRESENT').length}</p>
+          </div>
         </div>
-        <div className="flex gap-6">
-          {isAdmin && (
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-transparent text-xs font-bold uppercase tracking-widest outline-none border-b-2 border-border focus:border-primary pb-1 text-foreground" />
-          )}
-          <select value={status} onChange={e => setStatus(e.target.value)} className="bg-transparent text-xs font-bold uppercase tracking-widest outline-none border-b-2 border-border focus:border-primary pb-1 cursor-pointer text-foreground">
+
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl">
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Late</p>
+            <p className="text-2xl font-bold text-foreground">{records.filter(r => r.status?.toUpperCase() === 'LATE').length}</p>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-red-500/10 text-red-600 rounded-xl">
+            <XCircle size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Absent</p>
+            <p className="text-2xl font-bold text-foreground">{records.filter(r => r.status?.toUpperCase() === 'ABSENT').length}</p>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-blue-500/10 text-blue-600 rounded-xl">
+            <CalendarDays size={24} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">On Leave</p>
+            <p className="text-2xl font-bold text-foreground">{records.filter(r => r.status?.toUpperCase() === 'ON_LEAVE').length}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters & Controls */}
+      <div className="flex flex-wrap items-center gap-4 py-1">
+        {isAdmin && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg shadow-sm">
+            <Calendar size={16} className="text-muted-foreground" />
+            <input 
+              type="date" 
+              value={date} 
+              onChange={e => setDate(e.target.value)} 
+              className="text-sm font-medium outline-none bg-transparent text-foreground" 
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg shadow-sm">
+          <Filter size={16} className="text-muted-foreground" />
+          <select 
+            value={status} 
+            onChange={e => setStatus(e.target.value)} 
+            className="text-sm font-medium outline-none bg-transparent cursor-pointer min-w-[120px] text-foreground"
+          >
             <option value="" className="bg-card">All Statuses</option>
-            {['Ontime', 'Absent', 'Late'].map(s => <option key={s} value={s.toLowerCase() === 'ontime' ? 'present' : s.toLowerCase()} className="bg-card">{s}</option>)}
+            <option value="present" className="bg-card">Ontime</option>
+            <option value="late" className="bg-card">Late</option>
+            <option value="absent" className="bg-card">Absent</option>
           </select>
         </div>
       </div>
 
-      {/* Enhanced Simple Row Table */}
-      <div className="bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-        <div className="divide-y divide-border">
-          {records.length ? records.map(r => (
-            <div key={r.id || r.employeeId} className="flex flex-col sm:flex-row items-center justify-between p-3 hover:bg-muted/30 transition-colors group gap-6 sm:gap-0">
-              <div className="flex items-center gap-8 flex-1 w-full">
-                {/* Date/Weekday */}
-                <div className="w-12 text-center shrink-0">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">{new Date(r.date).toLocaleDateString('en-IN', { weekday: 'short' })}</p>
-                  <p className="text-2xl font-black text-foreground mt-1.5 tracking-tighter">{new Date(r.date).getDate()}</p>
-                </div>
-
-                <div className="h-10 w-[1px] bg-border hidden sm:block" />
-
-                {/* Info Grid */}
-                <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-8 items-center w-full">
-                  <div className="flex items-center gap-4 col-span-2 lg:col-span-1">
-                    <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center text-xs font-black text-muted-foreground shrink-0 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                      {isAdmin ? (r.firstName?.[0] || 'U') : <User size={20} />}
-                    </div>
-                    <div className="truncate">
-                      <p className="text-sm font-black text-foreground tracking-tight truncate">{isAdmin ? `${r.firstName} ${r.lastName}` : 'Attendance Record'}</p>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.1em] mt-0.5">{r.employeeId || 'SYS-ID'}</p>
-                    </div>
-                  </div>
-
-                  <div className="hidden lg:block">
-                    <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mb-1 opacity-60">Check In</p>
-                    <p className="text-xs font-bold text-foreground">{fmt(r.checkIn)}</p>
-                  </div>
-
-                  <div className="hidden lg:block">
-                    <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mb-1 opacity-60">Check Out</p>
-                    <p className="text-xs font-bold text-foreground">{fmt(r.checkOut)}</p>
-                  </div>
-
-                  <div className="flex items-center gap-6 justify-between lg:justify-start">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg border border-border">
-                      <Timer size={14} className="text-primary" />
-                      <span className="text-[11px] font-black text-foreground">{Number(r.workingHours || 0).toFixed(1)}h</span>
-                    </div>
-                    <div className="lg:hidden">
-                       <span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest border ${
-                        r.status?.toLowerCase() === 'present' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 
-                        r.status?.toLowerCase() === 'late' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 'text-rose-500 bg-rose-500/10 border-rose-500/20'
-                      }`}>
-                  {r.status?.toUpperCase() === 'PRESENT' ? 'ONTIME' : r.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hidden lg:flex items-center gap-6 pl-6">
-                <span className={`text-[10px] font-black px-4 py-2 rounded-xl uppercase tracking-widest border transition-all ${
-                  r.status?.toLowerCase() === 'present' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-500' : 
-                  r.status?.toLowerCase() === 'late' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-50 group-hover:text-amber-600 group-hover:border-amber-600' : 'text-rose-500 bg-rose-500/10 border-rose-500/20 group-hover:bg-rose-500 group-hover:text-white group-hover:border-rose-500'
-                }`}>
-                  {r.status?.toUpperCase() === 'PRESENT' ? 'ONTIME' : r.status}
-                </span>
-                <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </div>
-            </div>
-          )) : (
-            <div className="py-24 text-center">
-              <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em]">Institutional Records Empty</p>
-            </div>
-          )}
+      {/* Logs Table */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                {isAdmin && <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>}
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">In Time</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Out Time</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Working Hours</th>
+                <th className="px-6 py-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center">
+                    <div className="flex justify-center"><Clock className="animate-spin text-primary/40" size={32} /></div>
+                  </td>
+                </tr>
+              ) : records.length > 0 ? (
+                records.map((r, idx) => (
+                  <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex flex-col items-center justify-center shrink-0 border border-border">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase leading-none">{new Date(r.date).toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                          <span className="text-lg font-bold text-foreground leading-none mt-1">{new Date(r.date).getDate()}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{new Date(r.date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
+                        </div>
+                      </div>
+                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold text-foreground">{r.firstName} {r.lastName}</p>
+                        <p className="text-xs text-muted-foreground uppercase">{r.employeeId}</p>
+                      </td>
+                    )}
+                    <td className="px-6 py-4 text-center">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50 border border-border">
+                        <LogIn size={12} className="text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">{fmt(r.checkIn)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50 border border-border">
+                        <LogOut size={12} className="text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">{fmt(r.checkOut)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Timer size={14} className="text-muted-foreground" />
+                        <span className="text-sm font-bold text-foreground">{Number(r.workingHours || 0).toFixed(1)}h</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {getStatusBadge(r.status)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-16 text-center text-muted-foreground">
+                    <Calendar size={48} className="mx-auto mb-4 opacity-10" />
+                    <p className="text-sm font-medium">No attendance records found for this period</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

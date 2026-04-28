@@ -21,7 +21,7 @@ export async function GET() {
       [userId, tenantId]
     );
     
-    if (empResult.rowCount === 0 && !['ADMIN', 'HR', 'SUPER_ADMIN'].includes(role)) {
+    if ((empResult.rowCount || 0) === 0 && !['ADMIN', 'HR', 'SUPER_ADMIN'].includes(role)) {
       return NextResponse.json({ success: true, team: [] });
     }
 

@@ -43,63 +43,63 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-3xl p-10 animate-slide-up shadow-xl">
-      <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-4">
-          <GraduationCap className="w-8 h-8 text-primary" />
+    <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-4">
+          <GraduationCap className="w-6 h-6 text-primary" />
         </div>
-        <h1 className="text-2xl font-black text-foreground uppercase tracking-tight">University Staff</h1>
-        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-2 leading-none">Authentication Node</p>
+        <h1 className="text-xl font-bold text-foreground">HR Management System</h1>
+        <p className="text-muted-foreground text-sm mt-1">Sign in to your account</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Terminal Identity</label>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground ml-1">Email Address</label>
           <input
             id="login-email"
-            type="text"
+            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all"
-            placeholder="Email or Admin Username"
+            className="w-full px-4 py-2.5 bg-muted/20 border border-border rounded-lg text-sm text-foreground focus:ring-1 ring-primary outline-none transition-all"
+            placeholder="name@example.com"
             required
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Security Key</label>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground ml-1">Password</label>
           <div className="relative">
             <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-5 py-4 bg-muted border border-border rounded-2xl text-foreground placeholder-muted-foreground/50 focus:border-primary outline-none transition-all pr-14"
+              className="w-full px-4 py-2.5 bg-muted/20 border border-border rounded-lg text-sm text-foreground focus:ring-1 ring-primary outline-none transition-all pr-12"
               placeholder="••••••••"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="px-5 py-4 bg-danger/10 border border-danger/20 rounded-2xl text-danger text-xs font-bold uppercase tracking-wider">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-medium">
             {error}
           </div>
         )}
 
         <div className="flex items-center justify-between px-1">
-          <a href="/forgot-password" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
+          <a href="/forgot-password" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
             Forgot Password?
           </a>
-          <a href="/register" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline underline-offset-4 decoration-2">
-            Create Identity
+          <a href="/register" className="text-xs font-bold text-primary hover:underline">
+            Register
           </a>
         </div>
 
@@ -107,16 +107,16 @@ export default function LoginPage() {
           id="login-button"
           type="submit"
           disabled={loading}
-          className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg font-bold text-sm hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-          {loading ? 'Validating...' : 'Authorize Session'}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {loading ? 'Logging in...' : 'Login'}
         </button>
       </form>
 
-      <div className="mt-10 text-center">
-        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
-          Secure Institutional HR Management System
+      <div className="mt-8 text-center">
+        <p className="text-muted-foreground text-xs font-medium">
+          The Foundry HR Solutions
         </p>
       </div>
     </div>
