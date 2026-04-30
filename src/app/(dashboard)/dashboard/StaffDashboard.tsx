@@ -19,6 +19,8 @@ export default function StaffDashboard({ data }: { data: any }) {
 
   useEffect(() => {
     setLocalPraises(data?.praises || []);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, [data?.praises]);
 
   const handleLike = async (praiseId: string) => {
