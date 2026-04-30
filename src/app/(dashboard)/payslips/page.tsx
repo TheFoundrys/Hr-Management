@@ -47,7 +47,7 @@ export default function DynamicPayslipsPage() {
   if (loading) return <div className="flex justify-center p-24"><Loader2 className="animate-spin text-primary w-8 h-8"/></div>;
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-6 space-y-6 animate-fade-in">
+    <div className="w-full py-8 px-6 space-y-6 animate-fade-in">
       <FinancesNav />
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-8 border-b border-border">
         <div>
@@ -63,7 +63,7 @@ export default function DynamicPayslipsPage() {
               type="text" 
               placeholder="Filter Employees..." 
               onChange={e => setSearch(e.target.value)} 
-              className="bg-card border border-border rounded-xl px-5 py-2.5 text-xs text-foreground focus:border-primary outline-none w-full md:w-64 shadow-soft transition-all" 
+              className="bg-card border border-border rounded-none px-5 py-2.5 text-xs text-foreground focus:border-primary outline-none w-full md:w-64 shadow-soft transition-all" 
             />
             <button 
               onClick={async () => {
@@ -80,7 +80,7 @@ export default function DynamicPayslipsPage() {
                   alert(data.error);
                 }
               }}
-              className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all shadow-soft min-w-fit"
+              className="bg-primary text-primary-foreground px-6 py-2.5 rounded-none text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all shadow-soft min-w-fit"
             >
               Run Payroll Cycle
             </button>
@@ -89,7 +89,7 @@ export default function DynamicPayslipsPage() {
       </header>
 
       {!isAdmin ? (
-         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-soft">
+         <div className="bg-card border border-border rounded-none overflow-hidden shadow-soft">
            <table className="w-full text-left text-sm">
               <thead className="bg-muted border-b border-border text-muted-foreground uppercase text-[10px] font-black tracking-widest">
                  <tr>{['Month', 'Net Pay', 'Action'].map(h => <th key={h} className="p-4">{h}</th>)}</tr>
@@ -99,7 +99,7 @@ export default function DynamicPayslipsPage() {
                     <tr key={p.id} className="hover:bg-muted/50 transition-colors">
                        <td className="p-4 font-bold">{new Date(2024, p.month-1).toLocaleString('default', {month:'long'})} {p.year}</td>
                        <td className="p-4 text-primary font-black">₹{p.net_salary.toLocaleString()}</td>
-                       <td className="p-4"><button className="bg-muted text-foreground border border-border px-6 py-2 rounded-xl text-xs font-bold hover:bg-primary hover:text-primary-foreground transition-colors">Download</button></td>
+                       <td className="p-4"><button className="bg-muted text-foreground border border-border px-6 py-2 rounded-none text-xs font-bold hover:bg-primary hover:text-primary-foreground transition-colors">Download</button></td>
                     </tr>
                  ))}
                  {!myPayslips.length && <tr><td colSpan={3} className="p-12 text-center text-muted-foreground italic">No payslips found on record.</td></tr>}
@@ -112,11 +112,11 @@ export default function DynamicPayslipsPage() {
              const s = (v: any) => Number(v || 0);
              const net = s(emp.salary?.basic) + s(emp.salary?.hra) + s(emp.salary?.allowances) - s(emp.salary?.deductions);
              return (
-               <div key={emp.id} className="bg-card border border-border rounded-2xl p-5 hover:border-primary/50 transition-all shadow-soft flex flex-col justify-between">
+               <div key={emp.id} className="bg-card border border-border rounded-none p-5 hover:border-primary/50 transition-all shadow-soft flex flex-col justify-between">
                   <div className="mb-6">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-4">
-                         <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex justify-center items-center font-bold text-lg">
+                         <div className="w-12 h-12 rounded-none bg-primary/10 text-primary flex justify-center items-center font-bold text-lg">
                            {(emp.firstName?.[0] || 'U')}{(emp.lastName?.[0] || 'N')}
                          </div>
                          <div>
@@ -136,9 +136,9 @@ export default function DynamicPayslipsPage() {
                          </div>
                       </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground bg-muted p-3 rounded-xl border border-border">{emp.department} • <span className="text-foreground font-bold">{emp.designation}</span></div>
+                    <div className="text-[11px] text-muted-foreground bg-muted p-3 rounded-none border border-border">{emp.department} • <span className="text-foreground font-bold">{emp.designation}</span></div>
                   </div>
-                  <button onClick={() => dl(emp)} className="w-full py-3 bg-muted text-foreground border border-border rounded-xl text-xs font-bold hover:bg-primary hover:text-primary-foreground flex justify-center items-center gap-2 transition-colors"><Download size={14}/> Generate Statement</button>
+                  <button onClick={() => dl(emp)} className="w-full py-3 bg-muted text-foreground border border-border rounded-none text-xs font-bold hover:bg-primary hover:text-primary-foreground flex justify-center items-center gap-2 transition-colors"><Download size={14}/> Generate Statement</button>
                </div>
              );
            })}

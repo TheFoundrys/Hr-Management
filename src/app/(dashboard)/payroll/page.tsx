@@ -110,7 +110,7 @@ export default function PayrollPage() {
   const totalDeductions = payslips.reduce((s, p) => s + (Number(p.deductions) || 0), 0);
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-6 space-y-8 animate-in fade-in duration-500">
+    <div className="w-full py-8 px-6 space-y-8 animate-in fade-in duration-500">
       <FinancesNav />
       {/* Header Section */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -123,7 +123,7 @@ export default function PayrollPage() {
           </p>
         </div>
         
-        <div className="flex items-center gap-3 bg-card border border-border p-2 rounded-[1.5rem] shadow-sm">
+        <div className="flex items-center gap-3 bg-card border border-border p-2 rounded-none shadow-sm">
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="bg-transparent text-[10px] font-black uppercase tracking-widest px-4 py-2 outline-none cursor-pointer">
             {MONTHS.map((m, i) => <option key={i} value={i + 1} className="bg-card">{m}</option>)}
           </select>
@@ -134,7 +134,7 @@ export default function PayrollPage() {
           <button 
             onClick={generatePayroll} 
             disabled={generating} 
-            className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/10"
+            className="bg-primary text-primary-foreground px-6 py-2.5 rounded-none font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-primary/10"
           >
             {generating ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
             {generating ? 'Processing' : 'Execute Batch'}
@@ -149,7 +149,7 @@ export default function PayrollPage() {
           { label: 'Total Deductions (LOP/TDS)', value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: AlertCircle, color: 'text-rose-500 bg-rose-500/5 border-rose-500/10' },
           { label: 'Active Ledger Entries', value: payslips.length, icon: FileText, color: 'text-emerald-500 bg-emerald-500/5 border-emerald-500/10' }
         ].map((stat, i) => (
-          <div key={i} className={`p-6 rounded-[2rem] border flex flex-col gap-4 group hover:scale-[1.02] transition-all duration-300 ${stat.color}`}>
+          <div key={i} className={`p-6 rounded-none border flex flex-col gap-4 group hover:scale-[1.02] transition-all duration-300 ${stat.color}`}>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">{stat.label}</span>
               <stat.icon size={20} className="opacity-40 group-hover:opacity-100 transition-opacity" />
@@ -160,22 +160,22 @@ export default function PayrollPage() {
       </div>
 
       {/* Payroll Ledger Table */}
-      <div className="bg-card border border-border rounded-[2.5rem] shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-card border border-border rounded-none shadow-sm overflow-hidden flex flex-col">
         <div className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
            <h2 className="text-xs font-black uppercase tracking-widest text-foreground flex items-center gap-2">
              <Calendar size={14} className="text-primary" /> Disbursement Log
            </h2>
-           <button className="p-2.5 bg-card border border-border rounded-xl text-muted-foreground hover:text-foreground transition-all">
+           <button className="p-2.5 bg-card border border-border rounded-none text-muted-foreground hover:text-foreground transition-all">
              <Download size={18} />
            </button>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        
+        <div className="overflow-x-hidden">
+          <table className="w-full text-left table-auto">
             <thead>
               <tr className="bg-muted/5">
                 {['Personnel', 'Cycle', 'Basic', 'HRA', 'Gross', 'Deductions', 'Net Liquidity', 'Status', 'Actions'].map((h) => (
-                  <th key={h} className="px-6 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">{h}</th>
+                  <th key={h} className="px-3 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -184,10 +184,10 @@ export default function PayrollPage() {
                 <tr><td colSpan={9} className="py-24 text-center"><Loader2 className="animate-spin inline-block text-primary" size={32} /></td></tr>
               ) : payslips.map((p) => (
                 <tr key={p.id} className="hover:bg-muted/30 transition-all group">
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all">
-                        <User size={16} />
+                  <td className="px-3 py-5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-none bg-muted flex items-center justify-center font-black text-xs text-muted-foreground group-hover:bg-primary group-hover:text-white transition-all">
+                        <User size={14} />
                       </div>
                       <div>
                         <p className="text-sm font-black text-foreground tracking-tight">{p.employee_name || 'System User'}</p>
@@ -195,18 +195,18 @@ export default function PayrollPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-3 py-5">
                     <span className="text-[10px] font-black text-muted-foreground uppercase">{p.year}-{String(p.month).padStart(2, '0')}</span>
                   </td>
-                  <td className="px-6 py-5 text-sm font-bold text-foreground">₹{(Number(p.basic_salary) || 0).toLocaleString()}</td>
-                  <td className="px-6 py-5 text-sm font-bold text-foreground">₹{(Number(p.hra) || 0).toLocaleString()}</td>
-                  <td className="px-6 py-5 text-sm font-bold text-foreground">₹{(Number(p.basic_salary) + Number(p.hra) + Number(p.allowances)).toLocaleString()}</td>
-                  <td className="px-6 py-5 text-sm font-bold text-rose-500">-₹{(Number(p.deductions) || 0).toLocaleString()}</td>
-                  <td className="px-6 py-5">
-                    <p className="text-base font-black text-primary tracking-tighter">₹{(Number(p.net_salary) || 0).toLocaleString()}</p>
+                  <td className="px-3 py-5 text-sm font-bold text-foreground">₹{(Number(p.basic_salary) || 0).toLocaleString()}</td>
+                  <td className="px-3 py-5 text-sm font-bold text-foreground">₹{(Number(p.hra) || 0).toLocaleString()}</td>
+                  <td className="px-3 py-5 text-sm font-bold text-foreground">₹{(Number(p.basic_salary) + Number(p.hra) + Number(p.allowances)).toLocaleString()}</td>
+                  <td className="px-3 py-5 text-sm font-bold text-rose-500">-₹{(Number(p.deductions) || 0).toLocaleString()}</td>
+                  <td className="px-3 py-5">
+                    <p className="text-sm font-black text-primary tracking-tighter">₹{(Number(p.net_salary) || 0).toLocaleString()}</p>
                   </td>
-                  <td className="px-6 py-5">
-                    <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border flex items-center gap-2 w-fit ${
+                  <td className="px-3 py-5">
+                    <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-widest border flex items-center gap-1 w-fit ${
                       p.status === 'generated' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
                       p.status === 'suspended' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                       'bg-amber-500/10 text-amber-500 border-amber-500/20'
@@ -216,7 +216,7 @@ export default function PayrollPage() {
                     </span>
                   </td>
                   <td className="px-6 py-5">
-                    <button onClick={() => openOverride(p)} className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-all">
+                    <button onClick={() => openOverride(p)} className="p-2 hover:bg-primary/10 rounded-none text-primary transition-all">
                       <FileText size={18} />
                     </button>
                   </td>
@@ -235,7 +235,7 @@ export default function PayrollPage() {
       {/* Override Modal */}
       {isModalOpen && selectedPayslip && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-card border border-border rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-card border border-border rounded-none w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 border-b border-border bg-muted/20">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -260,7 +260,7 @@ export default function PayrollPage() {
                       type="number" 
                       value={overrideData[f.key as keyof typeof overrideData]} 
                       onChange={e => setOverrideData({ ...overrideData, [f.key]: parseFloat(e.target.value) || 0 })}
-                      className={`w-full px-5 py-4 bg-muted border border-border rounded-2xl text-lg font-black outline-none focus:border-primary transition-all ${f.isRed ? 'text-rose-500' : 'text-foreground'}`}
+                      className={`w-full px-5 py-4 bg-muted border border-border rounded-none text-lg font-black outline-none focus:border-primary transition-all ${f.isRed ? 'text-rose-500' : 'text-foreground'}`}
                     />
                   </div>
                 ))}
@@ -270,13 +270,13 @@ export default function PayrollPage() {
             <div className="p-8 bg-muted/10 flex gap-4">
               <button 
                 onClick={() => handleUpdate('suspended')}
-                className="flex-1 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-muted-foreground border border-border hover:bg-muted transition-all"
+                className="flex-1 px-6 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-muted-foreground border border-border hover:bg-muted transition-all"
               >
                 Suspend
               </button>
               <button 
                 onClick={() => handleUpdate('generated')}
-                className="flex-[2] px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-90 transition-all"
+                className="flex-[2] px-6 py-4 rounded-none text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-90 transition-all"
               >
                 Deploy Update
               </button>

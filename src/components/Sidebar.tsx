@@ -39,6 +39,7 @@ interface NavItem {
   hideForEmployee?: boolean;
   superAdminOnly?: boolean;
   hideForSuperAdmin?: boolean;
+  activePaths?: string[];
 }
 
 const FINANCE_ITEMS: NavItem[] = [
@@ -59,7 +60,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Departments', href: '/admin/departments', icon: Building, permission: 'MANAGE_SYSTEM', hideForCompany: true, hideForSuperAdmin: true },
   { label: 'Holidays', href: '/admin/holidays', icon: CalendarDays, permission: 'MANAGE_SYSTEM', hideForSuperAdmin: true },
   { label: 'Biometric', href: '/biometric', icon: FileBadge, permission: 'MANAGE_BIOMETRICS', hideForSuperAdmin: true },
-  { label: 'Finances', href: '/finances', icon: CreditCard, permission: 'MANAGE_PAYROLL' },
+  { label: 'Finances', href: '/salary-structure', icon: CreditCard, permission: 'MANAGE_PAYROLL', activePaths: ['/salary-structure', '/payroll', '/payslips', '/reports'] },
   { label: 'Profile', href: '/profile', icon: User },
 ];
 
@@ -145,7 +146,7 @@ export function Sidebar() {
 
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar">
           {filteredNav.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || item.activePaths?.includes(pathname);
             return (
               <Link
                 key={item.href}

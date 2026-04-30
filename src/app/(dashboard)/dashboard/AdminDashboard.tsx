@@ -88,28 +88,6 @@ export default function AdminDashboard({ data }: { data: any }) {
 
   // --- Personal Stats (Copied from StaffDashboard) ---
   const personalStats = data?.stats || { presentDays: 0, leaveDays: 0, pendingLeaves: 0, lateDays: 0 };
-  const calculateStreak = () => {
-    const attendance = data?.attendance || [];
-    if (!attendance.length) return 0;
-    const sorted = [...attendance].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    let currentStreak = 0;
-    for (const record of sorted) {
-      const status = record.status?.toUpperCase();
-      if (status === 'PRESENT' || status === 'LATE') currentStreak++;
-      else break;
-    }
-    return currentStreak;
-  };
-  const streak = calculateStreak();
-  const level = Math.floor(personalStats.presentDays / 15) + 1;
-  const xpProgress = Math.min(100, Math.round(((personalStats.presentDays % 15) / 15) * 100));
-  const badges = [
-    { id: 'early', label: 'Early Bird', icon: Zap, active: personalStats.lateDays < 2 && personalStats.presentDays > 5 },
-    { id: 'consistent', label: 'Consistent', icon: Star, active: personalStats.presentDays > 20 },
-    { id: 'planner', label: 'Planner', icon: Calendar, active: personalStats.leaveDays > 0 },
-    { id: 'master', label: 'Pro', icon: Trophy, active: level > 1 },
-  ];
-
   // --- Organizational Stats ---
   const orgStats = data?.stats || { totalEmployees: 0, presentToday: 0, pendingLeaves: 0 };
 
@@ -119,13 +97,11 @@ export default function AdminDashboard({ data }: { data: any }) {
       {/* LEFT COLUMN - Personal Utilities (4/12) */}
       <div className="lg:col-span-4 space-y-6">
         
+
         {/* Attendance Clock */}
         <div className="bg-card border border-border rounded-none p-6">
           <div className="flex justify-between items-center mb-4">
              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">My Attendance</h3>
-             <div className="flex items-center gap-2 px-2 py-0.5 bg-primary/10 text-primary rounded-none text-[9px] font-black uppercase tracking-tighter border border-primary/20">
-               <Zap size={10} className="fill-current" /> {streak} Day Streak
-             </div>
           </div>
           <div className="text-3xl font-black tracking-tighter text-foreground mb-6">
             {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
@@ -138,86 +114,8 @@ export default function AdminDashboard({ data }: { data: any }) {
           </p>
         </div>
 
-        {/* Level Progression */}
-        <div className="bg-card border border-border rounded-none p-6">
-           <div className="flex justify-between items-end mb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground leading-none mb-1">My Progress</p>
-                <h4 className="text-xl font-black text-foreground">Level {level}</h4>
-              </div>
-              <span className="text-[10px] font-black text-primary uppercase">{xpProgress}%</span>
-           </div>
-           <div className="h-2 bg-muted rounded-none overflow-hidden mb-3 border border-border">
-              <div 
-                className="h-full bg-primary rounded-none transition-all duration-1000" 
-                style={{ width: `${xpProgress}%` }} 
-              />
-           </div>
-           <p className="text-[9px] text-muted-foreground font-medium italic">
-             {15 - (personalStats.presentDays % 15)} days to level up
-           </p>
-        </div>
-
-        {/* Achievements */}
-        <div className="bg-card border border-border rounded-none p-6">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">My Badges</h3>
-          <div className="grid grid-cols-4 gap-2">
-            {badges.map((badge) => (
-              <div 
-                key={badge.id} 
-                title={badge.label}
-                className={`aspect-square rounded-none flex items-center justify-center border
-                  ${badge.active ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-muted/30 border-transparent text-muted-foreground opacity-30 grayscale'}
-                `}
-              >
-                <badge.icon size={18} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Leave Balances */}
-        <div className="bg-card border border-border rounded-none p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">My Leaves</h3>
-            <button className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">View</button>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {(data?.leaveBalances || []).slice(0, 3).map((lb: any, i: number) => (
-              <div key={i} className="bg-muted/30 border border-border p-3 rounded-none text-center">
-                <p className="text-sm font-black text-foreground leading-none">{lb.remaining}</p>
-                <p className="text-[7px] font-black text-muted-foreground uppercase mt-1 tracking-tighter truncate">{lb.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* RIGHT COLUMN - Organization Controls (8/12) */}
-      <div className="lg:col-span-8 space-y-6">
-        
-        {/* Admin Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { label: 'Total Staff', value: orgStats.totalEmployees, icon: Users, color: 'primary' },
-            { label: 'Present Today', value: orgStats.presentToday, icon: UserCheck, color: 'emerald-500' },
-            { label: 'Pending Leaves', value: orgStats.pendingLeaves, icon: CalendarOff, color: 'amber-500' }
-          ].map((s, i) => (
-            <div key={i} className="bg-card border border-border p-4 rounded-none flex items-center gap-4">
-              <div className={`p-2 bg-${s.color === 'primary' ? 'primary' : s.color}/10 text-${s.color === 'primary' ? 'primary' : s.color} rounded-none shrink-0`}>
-                <s.icon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[9px] tracking-wider uppercase text-muted-foreground font-black">{s.label}</p>
-                <h3 className="text-xl font-black text-foreground leading-none">{s.value}</h3>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pulse & Activity Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Pulse & Activity Grid (Moved from Right) */}
+        <div className="space-y-6">
            {/* Celebrations & Holidays */}
            <div className="bg-card border border-border rounded-none flex flex-col min-h-[250px]">
               <div className="border-b border-border bg-background p-2 flex gap-1">
@@ -279,6 +177,30 @@ export default function AdminDashboard({ data }: { data: any }) {
            </div>
         </div>
 
+      </div>
+
+      {/* RIGHT COLUMN - Organization Controls (8/12) */}
+      <div className="lg:col-span-8 space-y-6">
+        
+        {/* Admin Quick Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Total Staff', value: orgStats.totalEmployees, icon: Users, color: 'primary' },
+            { label: 'Present Today', value: orgStats.presentToday, icon: UserCheck, color: 'emerald-500' },
+            { label: 'Pending Leaves', value: orgStats.pendingLeaves, icon: CalendarOff, color: 'amber-500' }
+          ].map((s, i) => (
+            <div key={i} className="bg-card border border-border p-4 rounded-none flex items-center gap-4">
+              <div className={`p-2 bg-${s.color === 'primary' ? 'primary' : s.color}/10 text-${s.color === 'primary' ? 'primary' : s.color} rounded-none shrink-0`}>
+                <s.icon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[9px] tracking-wider uppercase text-muted-foreground font-black">{s.label}</p>
+                <h3 className="text-xl font-black text-foreground leading-none">{s.value}</h3>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Live Activity & Social Feed */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
            {/* Live Activity */}
@@ -323,6 +245,22 @@ export default function AdminDashboard({ data }: { data: any }) {
                  ))}
               </div>
            </div>
+        </div>
+
+        {/* Leave Balances (Moved from Left) */}
+        <div className="bg-card border border-border rounded-none p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">My Leaves</h3>
+            <button className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">View</button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {(data?.leaveBalances || []).slice(0, 3).map((lb: any, i: number) => (
+              <div key={i} className="bg-muted/30 border border-border p-3 rounded-none text-center">
+                <p className="text-sm font-black text-foreground leading-none">{lb.remaining}</p>
+                <p className="text-[7px] font-black text-muted-foreground uppercase mt-1 tracking-tighter truncate">{lb.name}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -13,10 +13,10 @@ export function ThemeToggle({ collapsed = false }: { collapsed?: boolean }) {
 
   if (!mounted) {
     return (
-      <div className={`flex items-center gap-3 px-3 py-2 rounded-xl border border-transparent 
+      <div className={`flex items-center gap-3 px-3 py-2 rounded-none border border-transparent 
         ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-4 h-4 bg-muted animate-pulse rounded-full" />
-        {!collapsed && <div className="h-4 w-20 bg-muted animate-pulse rounded-md" />}
+        <div className="w-4 h-4 bg-muted animate-pulse rounded-none" />
+        {!collapsed && <div className="h-4 w-20 bg-muted animate-pulse rounded-none" />}
       </div>
     );
   }
@@ -26,7 +26,7 @@ export function ThemeToggle({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all duration-300 group
+      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-none transition-all duration-300 group
         ${isDark 
           ? 'text-yellow-400 bg-yellow-400/5 hover:bg-yellow-400/10 border border-yellow-400/20' 
           : 'text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20'}

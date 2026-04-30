@@ -168,26 +168,33 @@ export default function EmployeesPage() {
                       {emp.status}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-right space-x-3">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('Delete this employee?')) {
-                          fetch(`/api/employees/${emp.id}`, { method: 'DELETE' })
-                            .then(res => res.json())
-                            .then(data => {
-                              if (data.success) fetchData();
-                              else alert(data.error);
-                            });
-                        }
-                      }}
-                      className="p-3.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 rounded-none transition-all inline-block shadow-sm"
-                    >
-                       <Trash2 size={18} />
-                    </button>
-                    <Link href={`/employees/${emp.id}`} className="p-3.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-none transition-all inline-block shadow-sm">
-                       <ChevronRight size={18} />
-                    </Link>
+                  <td className="px-6 py-5">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Delete this employee?')) {
+                            fetch(`/api/employees/${emp.id}`, { method: 'DELETE' })
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.success) fetchData();
+                                else alert(data.error);
+                              });
+                          }
+                        }}
+                        className="p-2.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 rounded-none transition-all flex items-center justify-center shadow-sm border border-border/50 hover:border-rose-500/20"
+                        title="Delete Employee"
+                      >
+                         <Trash2 size={16} strokeWidth={2.5} />
+                      </button>
+                      <Link 
+                        href={`/employees/${emp.id}`} 
+                        className="p-2.5 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-none transition-all flex items-center justify-center shadow-sm border border-border/50 hover:border-primary/20"
+                        title="View Details"
+                      >
+                         <ChevronRight size={16} strokeWidth={2.5} />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

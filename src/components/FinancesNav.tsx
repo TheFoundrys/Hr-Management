@@ -15,8 +15,8 @@ export function FinancesNav() {
   const pathname = usePathname();
 
   return (
-    <div className="w-full bg-card border border-border rounded-2xl p-2 mb-6 overflow-hidden shadow-sm">
-      <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar scroll-smooth px-1">
+    <div className="w-full bg-card border border-border rounded-none p-2 mb-6 overflow-hidden shadow-sm">
+      <div className="flex items-center justify-start gap-2 overflow-x-auto no-scrollbar scroll-smooth px-1">
         {ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -24,7 +24,7 @@ export function FinancesNav() {
               key={item.href}
               href={item.href}
               className={`
-                flex items-center gap-2 px-5 py-2.5 rounded-lg whitespace-nowrap transition-all duration-200
+                flex items-center gap-2 px-5 py-2.5 rounded-none whitespace-nowrap transition-all duration-200
                 ${isActive 
                   ? 'bg-primary text-primary-foreground' 
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
