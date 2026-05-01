@@ -43,9 +43,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
+    <div className="bg-card border border-border rounded-none p-8 shadow-none">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-4">
+        <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-none mb-4">
           <GraduationCap className="w-6 h-6 text-primary" />
         </div>
         <h1 className="text-xl font-bold text-foreground">HR Management System</h1>
@@ -54,14 +54,14 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground ml-1">Email Address</label>
+          <label className="text-sm font-medium text-foreground ml-1">Username or Email</label>
           <input
             id="login-email"
-            type="email"
+            type="text"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2.5 bg-muted/20 border border-border rounded-lg text-sm text-foreground focus:ring-1 ring-primary outline-none transition-all"
-            placeholder="name@example.com"
+            className="w-full px-4 py-2.5 bg-muted/20 border border-border rounded-none text-sm text-foreground focus:ring-1 ring-primary outline-none transition-all"
+            placeholder="admin or email@example.com"
             required
           />
         </div>
@@ -74,7 +74,7 @@ export default function LoginPage() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-muted/20 border border-border rounded-lg text-sm text-foreground focus:ring-1 ring-primary outline-none transition-all pr-12"
+              className="w-full px-4 py-2.5 bg-muted/20 border border-border rounded-none text-sm text-foreground focus:ring-1 ring-primary outline-none transition-all pr-12"
               placeholder="••••••••"
               required
             />
@@ -89,7 +89,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs font-medium">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-none text-red-600 text-xs font-medium">
             {error}
           </div>
         )}
@@ -107,7 +107,7 @@ export default function LoginPage() {
           id="login-button"
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg font-bold text-sm hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-2.5 bg-primary text-primary-foreground rounded-none font-bold text-sm hover:bg-primary/90 transition-all shadow-none disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           {loading ? 'Logging in...' : 'Login'}
