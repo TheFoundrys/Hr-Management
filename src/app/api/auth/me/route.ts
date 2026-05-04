@@ -17,28 +17,40 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }
 
+    const userRes = await query(
+      'SELECT id, name, email, role, tenant_id, employee_id, is_active FROM users WHERE id = $1',
+      [payload.userId]
+    );
+    const currentUser = userRes.rows[0];
+    if (!currentUser || !currentUser.is_active) {
+      return NextResponse.json({ error: 'User not active' }, { status: 401 });
+    }
+
     // Fetch tenant details
     let tenantName = 'Management Compass';
     let tenantType = 'EDUCATION';
-    if (payload.tenantId) {
-      const res = await query('SELECT name, tenant_type FROM tenants WHERE id = $1', [payload.tenantId]);
+    let tenantSettings = {};
+    if (currentUser.tenant_id) {
+      const res = await query('SELECT name, tenant_type, settings FROM tenants WHERE id = $1', [currentUser.tenant_id]);
       if (res.rows.length > 0) {
         tenantName = res.rows[0].name;
         tenantType = res.rows[0].tenant_type;
+        tenantSettings = res.rows[0].settings || {};
       }
     }
 
     return NextResponse.json({
       success: true,
       user: {
-        id: payload.userId,
-        name: payload.name,
-        email: payload.email,
-        role: payload.role,
-        tenantId: payload.tenantId,
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        role: currentUser.role,
+        tenantId: currentUser.tenant_id,
         tenantName: tenantName,
         tenantType: tenantType,
-        employeeId: payload.employeeId,
+        tenantSettings: tenantSettings,
+        employeeId: currentUser.employee_id,
       },
     });
   } catch (error) {

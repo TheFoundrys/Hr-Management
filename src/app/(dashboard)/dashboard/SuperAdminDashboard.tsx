@@ -20,9 +20,9 @@ export default function SuperAdminDashboard({ data }: { data: any }) {
           { label: 'Platform Status', value: stats.systemUptime, trend: 'Stable', icon: ShieldCheck, color: 'text-emerald-500' },
           { label: 'Daily Activity', value: stats.globalAttendanceToday, trend: 'Real-time', icon: Activity, color: 'text-rose-500' }
         ].map((s, i) => (
-          <div key={i} className="bg-card border border-border p-5 rounded-none  hover:border-primary/20 transition-all">
+          <div key={i} className="bg-card border border-border p-5 rounded-xl  hover:border-primary/20 transition-all">
             <div className="flex justify-between items-start mb-4">
-               <div className={`p-3 bg-muted rounded-none ${s.color}`}>
+               <div className={`p-3 bg-muted rounded-xl ${s.color}`}>
                   <s.icon size={20} />
                </div>
                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{s.trend}</span>
@@ -35,10 +35,10 @@ export default function SuperAdminDashboard({ data }: { data: any }) {
 
       {/* Real Data Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         <div className="bg-card border border-border rounded-none p-6 ">
+         <div className="bg-card border border-border rounded-xl p-6 ">
             <div className="flex items-center justify-between mb-6">
                <h3 className="text-xs font-black uppercase tracking-widest text-foreground">Organization Growth</h3>
-               <div className="w-2 h-2 rounded-none bg-primary" />
+               <div className="w-2 h-2 rounded-xl bg-primary" />
             </div>
             <div className="h-[250px] w-full">
                <ResponsiveContainer width="100%" height="100%">
@@ -62,13 +62,13 @@ export default function SuperAdminDashboard({ data }: { data: any }) {
             </div>
          </div>
 
-         <div className="bg-card border border-border rounded-none p-6  overflow-hidden flex flex-col">
+         <div className="bg-card border border-border rounded-xl p-6  overflow-hidden flex flex-col">
             <h3 className="text-xs font-black uppercase tracking-widest text-foreground mb-6">Recent Onboarding</h3>
             <div className="flex-1 space-y-3">
                {recentTenants.length > 0 ? recentTenants.map((t: any, i: number) => (
-                 <div key={i} className="flex items-center justify-between p-3 bg-muted/20 rounded-none border border-border">
+                 <div key={i} className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border">
                     <div className="flex items-center gap-3">
-                       <div className="w-8 h-8 rounded-none bg-primary/10 flex items-center justify-center text-primary">
+                       <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                           <Sparkles size={14} />
                        </div>
                        <div>
@@ -79,7 +79,7 @@ export default function SuperAdminDashboard({ data }: { data: any }) {
                     <span className="text-[9px] text-muted-foreground font-bold">{new Date(t.created_at).toLocaleDateString()}</span>
                  </div>
                )) : (
-                 <div className="flex-1 flex items-center justify-center border border-dashed border-border rounded-none italic text-muted-foreground text-[10px]">
+                 <div className="flex-1 flex items-center justify-center border border-dashed border-border rounded-xl italic text-muted-foreground text-[10px]">
                     No recent tenant activity
                  </div>
                )}

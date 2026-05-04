@@ -10,6 +10,10 @@ export function RemoteClockIn() {
 
   useEffect(() => {
     fetchStatus();
+    const interval = setInterval(() => {
+      fetchStatus();
+    }, 10_000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchStatus = async () => {
@@ -48,7 +52,7 @@ export function RemoteClockIn() {
   if (loading) return <div className="h-10 flex items-center justify-center"><Loader2 className="animate-spin" size={16} /></div>;
 
   const sessions = status?.remote_metadata?.sessions || [];
-  const isRemoteActive = sessions.length > 0 && !sessions[sessions.length - 1].out;
+  const isRemoteActive = Array.isArray(sessions) && sessions.some((s: { out?: string }) => s && !s.out);
   const isDayCompleted = status?.check_out && !isRemoteActive;
 
   return (
@@ -62,10 +66,10 @@ export function RemoteClockIn() {
       <button 
         disabled={actionLoading}
         onClick={() => handleAction(isRemoteActive ? 'out' : 'in')}
-        className={`w-full py-4 rounded-none font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg ${
+        className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg ${
           isRemoteActive 
             ? 'bg-rose-500 text-white shadow-rose-500/20 hover:bg-rose-600' 
-            : 'bg-primary text-secondary shadow-primary/20 hover:scale-[1.02]'
+            : 'bg-primary text-primary-foreground shadow-primary/20 hover:scale-[1.02]'
         }`}
       >
         {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <MousePointer2 size={12} />}

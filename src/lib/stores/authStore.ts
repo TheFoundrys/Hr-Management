@@ -1,14 +1,15 @@
 import { create } from 'zustand';
+import { TenantSettings, TenantType } from '../types/tenant';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'teaching' | 'non-teaching' | 'staff' | string;
+  role: string;
   tenantId: string;
   tenantName?: string;
-  tenantType?: 'EDUCATION' | 'COMPANY';
-  tenantSettings?: any;
+  tenantType?: TenantType;
+  tenantSettings?: TenantSettings;
   employeeId?: string;
 }
 

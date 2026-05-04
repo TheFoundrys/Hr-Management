@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+import { TenantType, TenantSettings } from '@/lib/types/tenant';
+
 interface Tenant {
   id: string;
   name: string;
@@ -15,8 +17,8 @@ interface Tenant {
   domain: string;
   org_type: string;
   org_size: number;
-  tenant_type: 'EDUCATION' | 'COMPANY';
-  settings: any;
+  tenant_type: TenantType;
+  settings: TenantSettings;
   created_at: string;
 }
 
@@ -105,7 +107,7 @@ export default function TenantsPage() {
         </div>
         <Link
           href="/superadmin/tenants/create"
-          className="flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-none font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+          className="flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
           <Plus size={16} strokeWidth={3} /> Propose New Instance
         </Link>
@@ -119,7 +121,7 @@ export default function TenantsPage() {
           { label: 'Network Integrity', value: '100%', icon: ShieldCheck, color: 'text-amber-500' },
           { label: 'Uptime', value: '99.99%', icon: Globe, color: 'text-indigo-500' }
         ].map((s, i) => (
-          <div key={i} className="bg-card border border-border p-6 rounded-none shadow-sm group hover:border-primary/20 transition-all">
+          <div key={i} className="bg-card border border-border p-6 rounded-xl shadow-sm group hover:border-primary/20 transition-all">
              <div className="flex items-center justify-between mb-4">
                 <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">{s.label}</p>
                 <s.icon size={14} className={s.color} />
@@ -129,9 +131,9 @@ export default function TenantsPage() {
         ))}
       </div>
 
-      <div className="bg-card border border-border rounded-none overflow-hidden shadow-2xl flex flex-col">
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xl flex flex-col">
         <div className="p-6 border-b border-border bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
-           <div className="flex items-center gap-3 bg-card border border-border px-4 py-3 rounded-none flex-1 max-w-xl shadow-inner focus-within:border-primary transition-all">
+           <div className="flex items-center gap-3 bg-card border border-border px-4 py-3 rounded-xl flex-1 max-w-xl shadow-inner focus-within:border-primary transition-all">
               <Search size={18} className="text-muted-foreground" />
               <input
                 type="text"
@@ -171,7 +173,7 @@ export default function TenantsPage() {
                 <tr key={tenant.id} className="hover:bg-muted/30 transition-all group">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-none flex items-center justify-center shadow-sm ${
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${
                         tenant.tenant_type === 'EDUCATION' ? 'bg-indigo-500/10 text-indigo-600' : 'bg-emerald-500/10 text-emerald-600'
                       }`}>
                         {tenant.tenant_type === 'EDUCATION' ? <Sparkles size={20} /> : <Building2 size={20} />}
@@ -184,7 +186,7 @@ export default function TenantsPage() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="space-y-1">
-                      <span className={`text-[9px] px-3 py-1 rounded-none font-black uppercase tracking-widest ${
+                      <span className={`text-[9px] px-3 py-1 rounded-xl font-black uppercase tracking-widest ${
                         tenant.org_type === 'hospital' ? 'bg-rose-500/10 text-rose-600' : 
                         tenant.org_type === 'university' ? 'bg-indigo-500/10 text-indigo-600' : 
                         'bg-emerald-500/10 text-emerald-600'
@@ -218,19 +220,19 @@ export default function TenantsPage() {
                     <div className="flex items-center justify-end gap-3">
                       <button
                         onClick={() => setEditingTenant(tenant)}
-                        className="p-3 bg-muted/50 border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-all rounded-none"
+                        className="p-3 bg-muted/50 border border-border text-muted-foreground hover:text-foreground hover:border-primary transition-all rounded-xl"
                         title="Configure Instance"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => deleteTenant(tenant.id)}
-                        className="p-3 bg-muted/50 border border-border text-muted-foreground hover:text-rose-500 hover:border-rose-500 transition-all rounded-none opacity-0 group-hover:opacity-100"
+                        className="p-3 bg-muted/50 border border-border text-muted-foreground hover:text-rose-500 hover:border-rose-500 transition-all rounded-xl opacity-0 group-hover:opacity-100"
                         title="Decommission Node"
                       >
                         <Trash2 size={14} />
                       </button>
-                      <Link href={`#`} className="p-3 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all rounded-none">
+                      <Link href={`#`} className="p-3 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all rounded-xl">
                          <ChevronRight size={14} />
                       </Link>
                     </div>
@@ -245,7 +247,7 @@ export default function TenantsPage() {
       {/* Modernized Edit Modal */}
       {editingTenant && (
         <div className="fixed inset-0 bg-background/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-card w-full max-w-lg border border-border shadow-2xl rounded-none p-10 space-y-8 animate-in zoom-in-95 duration-200">
+          <div className="bg-card w-full max-w-lg border border-border shadow-2xl rounded-xl p-10 space-y-8 animate-in zoom-in-95 duration-200">
             <div className="space-y-1">
                <h2 className="text-3xl font-black uppercase tracking-tighter">Adjust Node Config</h2>
                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Modifying parameters for siloed instance: {editingTenant.id}</p>
@@ -260,7 +262,7 @@ export default function TenantsPage() {
                      required
                      value={editingTenant.name}
                      onChange={(e) => setEditingTenant({ ...editingTenant, name: e.target.value })}
-                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-none outline-none transition-all font-bold text-sm"
+                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-xl outline-none transition-all font-bold text-sm"
                    />
                  </div>
 
@@ -270,7 +272,7 @@ export default function TenantsPage() {
                      required
                      value={editingTenant.org_type || ''}
                      onChange={(e) => setEditingTenant({ ...editingTenant, org_type: e.target.value.toLowerCase() })}
-                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-none outline-none transition-all font-bold text-sm"
+                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-xl outline-none transition-all font-bold text-sm"
                    />
                  </div>
 
@@ -280,7 +282,7 @@ export default function TenantsPage() {
                      required
                      value={editingTenant.domain || ''}
                      onChange={(e) => setEditingTenant({ ...editingTenant, domain: e.target.value })}
-                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-none outline-none transition-all font-bold text-sm"
+                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-xl outline-none transition-all font-bold text-sm"
                    />
                  </div>
 
@@ -291,7 +293,7 @@ export default function TenantsPage() {
                      type="number"
                      value={editingTenant.org_size || 0}
                      onChange={(e) => setEditingTenant({ ...editingTenant, org_size: parseInt(e.target.value) })}
-                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-none outline-none transition-all font-bold text-sm"
+                     className="w-full bg-muted/40 border border-border focus:border-primary px-4 py-3 rounded-xl outline-none transition-all font-bold text-sm"
                    />
                  </div>
               </div>

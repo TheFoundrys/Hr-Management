@@ -13,7 +13,8 @@ export default function SuperAdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !['SUPER_ADMIN', 'global_admin'].includes(user?.role || '')) {
+    const role = (user?.role || '').toUpperCase();
+    if (!isLoading && !['SUPER_ADMIN', 'GLOBAL_ADMIN'].includes(role)) {
       router.replace('/dashboard');
     }
   }, [user, isLoading, router]);

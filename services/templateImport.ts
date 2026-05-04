@@ -34,24 +34,39 @@ export async function importTemplate(tenantId: string, templateId: string, clien
     for (const des of desRes.rows) {
       await client.query(
         `INSERT INTO designations (id, tenant_id, name) VALUES ($1, $2, $3)`,
-        [uuidv4(), tenantId, des.name]
+        [uuidv4(), tenantId, des.name || des.title]
       );
     }
 
-    // 6. Update tenant labels and roles from template
+    // 6. Fetch and Update hierarchy labels
+    const labelRes = await client.query('SELECT depth, label FROM template_labels WHERE template_id = $1', [templateId]);
+    const customLabels: Record<string, string> = {};
+    labelRes.rows.forEach((row: any) => {
+      if (row.depth === 0) customLabels.level_0 = row.label;
+      else if (row.depth === 1) customLabels.level_1 = row.label;
+      else if (row.depth === 2) customLabels.level_2 = row.label;
+      else if (row.depth === 3) customLabels.level_3 = row.label;
+      
+      // Legacy mapping
+      if (row.depth === 1) customLabels.department = row.label;
+      if (row.depth === 0) customLabels.organization = row.label;
+    });
+
+    // 7. Update tenant settings
     const newSettings = {
-      ...template.hierarchy_labels ? { hierarchy: { custom_labels: template.hierarchy_labels } } : {},
+      hierarchy: {
+        custom_labels: customLabels,
+        label_vocabulary: template.org_type === 'university' ? 'university' : 'corporate'
+      },
       ...template.available_roles ? { roles: template.available_roles } : {}
     };
 
-    if (Object.keys(newSettings).length > 0) {
-      await client.query(
-        `UPDATE tenants 
-         SET settings = settings || $1::jsonb 
-         WHERE id = $2`,
-        [JSON.stringify(newSettings), tenantId]
-      );
-    }
+    await client.query(
+      `UPDATE tenants 
+       SET settings = settings || $1::jsonb 
+       WHERE id = $2`,
+      [JSON.stringify(newSettings), tenantId]
+    );
 
     return true;
   } catch (error) {

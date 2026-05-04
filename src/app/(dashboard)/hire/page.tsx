@@ -78,7 +78,7 @@ export default function HirePage() {
     <div className="max-w-full py-12 px-6 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="space-y-2">
         <h1 className="text-4xl font-black text-foreground tracking-tight flex items-center gap-4">
-          <div className="p-3 bg-primary/10 rounded-none">
+          <div className="p-3 bg-primary/10 rounded-xl">
             <UserPlus size={32} className="text-primary" />
           </div>
           Hire New Talent
@@ -89,8 +89,8 @@ export default function HirePage() {
       </header>
 
       {success ? (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 p-12 rounded-none flex flex-col items-center justify-center text-center space-y-4 animate-in zoom-in duration-300">
-          <div className="w-20 h-20 bg-emerald-500 rounded-none flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <div className="bg-emerald-500/10 border border-emerald-500/20 p-12 rounded-xl flex flex-col items-center justify-center text-center space-y-4 animate-in zoom-in duration-300">
+          <div className="w-20 h-20 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <CheckCircle2 size={40} className="text-white" />
           </div>
           <div className="space-y-1">
@@ -99,7 +99,7 @@ export default function HirePage() {
           </div>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-none p-10 shadow-sm shadow-primary/5">
+        <div className="bg-card border border-border rounded-xl p-10 shadow-sm shadow-primary/5">
           <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-8">
               <div className="space-y-3">
@@ -109,7 +109,7 @@ export default function HirePage() {
                   value={form.name} 
                   onChange={e => setForm({ ...form, name: e.target.value })} 
                   placeholder="e.g. John Doe"
-                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-none text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground" 
+                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-xl text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground" 
                 />
               </div>
               <div className="space-y-3">
@@ -120,7 +120,7 @@ export default function HirePage() {
                   value={form.email} 
                   onChange={e => setForm({ ...form, email: e.target.value })} 
                   placeholder="john.doe@organization.com"
-                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-none text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground" 
+                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-xl text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground" 
                 />
               </div>
               <div className="space-y-3">
@@ -129,10 +129,10 @@ export default function HirePage() {
                   required 
                   value={form.role} 
                   onChange={e => setForm({ ...form, role: e.target.value })} 
-                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-none text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground appearance-none"
+                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-xl text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground appearance-none"
                 >
                   <option value="" className="bg-card">Select Role</option>
-                  {(user?.tenantSettings?.roles || ['ADMIN', 'HR', 'MANAGER', 'EMPLOYEE']).map((r: string) => (
+                  {(user?.tenantSettings?.roles ? Object.keys(user.tenantSettings.roles) : ['ADMIN', 'HR', 'MANAGER', 'EMPLOYEE']).map((r: string) => (
                     <option key={r} value={r} className="bg-card">{r}</option>
                   ))}
                 </select>
@@ -141,24 +141,28 @@ export default function HirePage() {
 
             <div className="space-y-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Employee Serial ID</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                  {(user?.tenantSettings?.hierarchy?.custom_labels?.employee_id || (isCompany ? 'Employee ID' : 'University ID'))}
+                </label>
                 <input 
                   required 
                   value={form.employeeId} 
                   onChange={e => setForm({ ...form, employeeId: e.target.value })} 
                   placeholder="e.g. TO-0001"
-                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-none text-sm font-black outline-none focus:border-primary focus:bg-card transition-all text-foreground placeholder:opacity-30" 
+                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-xl text-sm font-black outline-none focus:border-primary focus:bg-card transition-all text-foreground placeholder:opacity-30" 
                 />
               </div>
               {!isCompany && (
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Department</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                    {(user?.tenantSettings?.hierarchy?.custom_labels?.department || 'Department')}
+                  </label>
                   <select 
                     value={form.departmentId} 
                     onChange={e => setForm({ ...form, departmentId: e.target.value })} 
-                    className="w-full px-6 py-4 bg-muted/50 border border-border rounded-none text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground appearance-none"
+                    className="w-full px-6 py-4 bg-muted/50 border border-border rounded-xl text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground appearance-none"
                   >
-                    <option value="" className="bg-card">Select Department</option>
+                    <option value="" className="bg-card">Select {(user?.tenantSettings?.hierarchy?.custom_labels?.department || 'Department')}</option>
                     {departments.map(d => <option key={d.id} value={d.id} className="bg-card">{d.name}</option>)}
                   </select>
                 </div>
@@ -169,7 +173,7 @@ export default function HirePage() {
                   required 
                   value={form.designationId} 
                   onChange={e => setForm({ ...form, designationId: e.target.value })} 
-                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-none text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground appearance-none"
+                  className="w-full px-6 py-4 bg-muted/50 border border-border rounded-xl text-sm font-bold outline-none focus:border-primary focus:bg-card transition-all text-foreground appearance-none"
                 >
                   <option value="" className="bg-card">Select Designation</option>
                   {designations.map(d => <option key={d.id} value={d.id} className="bg-card">{d.name}</option>)}
@@ -181,7 +185,7 @@ export default function HirePage() {
                <button 
                 type="submit" 
                 disabled={isSubmitting} 
-                className="w-full py-5 bg-primary text-primary-foreground text-xs font-black uppercase tracking-[0.4em] rounded-none shadow-2xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3"
+                className="w-full py-5 bg-primary text-primary-foreground text-xs font-black uppercase tracking-[0.4em] rounded-xl shadow-2xl shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3"
               >
                  {isSubmitting ? (
                    <>

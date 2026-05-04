@@ -28,14 +28,14 @@ export async function POST(request: Request) {
     const { email, password } = parsed.data;
     const normalizedEmail = email.toLowerCase();
 
-    // Find user in PostgreSQL
+    // Find user in PostgreSQL by email OR employee_id (username)
     const result = await query(`
       SELECT u.id, u.name, u.email, u.password_hash, u.role, u.tenant_id, u.employee_id, u.is_active, 
              e.id as internal_employee_id, e.department_id
       FROM users u
       LEFT JOIN employees e ON (u.id = e.user_id OR u.employee_id = e.employee_id)
-      WHERE u.email = $1
-    `, [normalizedEmail]);
+      WHERE u.email = $1 OR LOWER(u.employee_id) = $1 OR u.employee_id = $2
+    `, [normalizedEmail, email]);
 
     const user = result.rows[0];
 
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         attempts = rate_limits.attempts + 1,
         lockout_until = CASE WHEN rate_limits.attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes' ELSE NULL END
       `, [ip]);
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     };
 
     if (!user) return handleFailure();

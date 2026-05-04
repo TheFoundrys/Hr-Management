@@ -128,7 +128,7 @@ export default function TemplateConfigPage({ params }: { params: Promise<{ id: s
          
          <div className="lg:col-span-8 space-y-6">
             {activeTab === 'hierarchy' && (
-              <div className="bg-card border border-border p-8 rounded-none shadow-2xl space-y-8">
+              <div className="bg-card border border-border p-8 rounded-xl shadow-2xl space-y-8">
                  <div className="flex items-center justify-between">
                     <h3 className="text-xl font-black uppercase tracking-tighter">Organizational Tree</h3>
                     <button className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-muted hover:bg-primary hover:text-white transition-all">
@@ -168,7 +168,7 @@ export default function TemplateConfigPage({ params }: { params: Promise<{ id: s
             )}
 
             {activeTab === 'designations' && (
-               <div className="bg-card border border-border p-8 rounded-none shadow-2xl space-y-6">
+               <div className="bg-card border border-border p-8 rounded-xl shadow-2xl space-y-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-black uppercase tracking-tighter">Standard Roles</h3>
                     <button className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-muted hover:bg-primary hover:text-white transition-all">
@@ -187,7 +187,7 @@ export default function TemplateConfigPage({ params }: { params: Promise<{ id: s
             )}
 
             {activeTab === 'roles' && (
-                <div className="bg-card border border-border p-8 rounded-none shadow-2xl space-y-6">
+                <div className="bg-card border border-border p-8 rounded-xl shadow-2xl space-y-6">
                    <div className="flex items-center justify-between">
                      <h3 className="text-xl font-black uppercase tracking-tighter">System Roles</h3>
                      <button 
@@ -224,7 +224,7 @@ export default function TemplateConfigPage({ params }: { params: Promise<{ id: s
              )}
 
             {activeTab === 'labels' && (
-               <div className="bg-card border border-border p-8 rounded-none shadow-2xl space-y-8">
+               <div className="bg-card border border-border p-8 rounded-xl shadow-2xl space-y-8">
                   <h3 className="text-xl font-black uppercase tracking-tighter">Sector Vocabulary</h3>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest -mt-4">Mapping depth levels to sector-specific terminology</p>
                   
@@ -253,7 +253,7 @@ export default function TemplateConfigPage({ params }: { params: Promise<{ id: s
 
          {/* Blueprint Meta Sidebar */}
          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-muted/30 border border-border p-6 rounded-none space-y-6">
+            <div className="bg-muted/30 border border-border p-6 rounded-xl space-y-6">
                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border pb-3">Blueprint Specs</h4>
                
                <div className="space-y-4">

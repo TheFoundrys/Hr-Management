@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { Loader2, Cake, PartyPopper } from 'lucide-react';
-import { hasPermission } from '@/lib/auth/rbac';
+import { Loader2, Cake } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import StaffDashboard from './StaffDashboard';
 import SuperAdminDashboard from './SuperAdminDashboard';
@@ -16,18 +15,44 @@ export default function DashboardPage() {
       .then(res => res.json())
       .then(json => json.success && setData(json.dashboard))
       .catch(console.error);
+  }, [user]);
+
+  const role = (user?.role || '').toUpperCase().replace(/-/g, '_');
+  const wantsLiveAttendance =
+    role === 'SUPER_ADMIN' ||
+    role === 'GLOBAL_ADMIN' ||
+    role === 'ADMIN';
+
+  useEffect(() => {
+    if (!wantsLiveAttendance) return;
 
     const sse = new EventSource('/api/attendance/events');
     sse.onmessage = (e) => {
       const ev = JSON.parse(e.data);
-      setData((prev: any) => prev ? {
-        ...prev,
-        stats: { ...prev.stats, presentToday: prev.stats.presentToday + (ev.type === 'check_in' ? 1 : 0) },
-        liveEvents: [{ employeeId: ev.employeeId, employeeName: ev.employeeName, type: ev.type, timestamp: ev.timestamp }, ...(prev.liveEvents || [])].slice(0, 10)
-      } : prev);
+      setData((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              stats: {
+                ...prev.stats,
+                presentToday:
+                  (prev.stats?.presentToday ?? 0) + (ev.type === 'check_in' ? 1 : 0),
+              },
+              liveEvents: [
+                {
+                  employeeId: ev.employeeId,
+                  employeeName: ev.employeeName,
+                  type: ev.type,
+                  timestamp: ev.timestamp,
+                },
+                ...(prev.liveEvents || []),
+              ].slice(0, 10),
+            }
+          : prev
+      );
     };
     return () => sse.close();
-  }, [user]);
+  }, [wantsLiveAttendance]);
 
   if (!data) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -36,9 +61,8 @@ export default function DashboardPage() {
     </div>
   );
 
-  const role = (user?.role || '').toUpperCase().replace(/-/g, '_');
   const isSuperAdmin = role === 'SUPER_ADMIN';
-  const isAdmin = isSuperAdmin || hasPermission(user?.role || '', 'VIEW_ALL_EMPLOYEES');
+  const isAdmin = role === 'ADMIN' || role === 'GLOBAL_ADMIN';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">

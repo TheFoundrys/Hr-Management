@@ -10,18 +10,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-muted-foreground font-medium text-sm animate-pulse">Loading workspace...</p>
+          <p className="text-muted-foreground font-medium text-sm animate-pulse">
+            {isLoading ? 'Loading workspace...' : 'Redirecting to login...'}
+          </p>
         </div>
       </div>
     );
   }
-
-  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

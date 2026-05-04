@@ -1,6 +1,36 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
 import { getTenantId } from '@/lib/utils/tenant';
+import { sendLeaveDecisionToEmployee } from '@/lib/mail/leaveNotifications';
+
+async function getTenantName(tenantId: string): Promise<string> {
+  const r = await query('SELECT name FROM tenants WHERE id = $1', [tenantId]);
+  return r.rows[0]?.name || 'HR Portal';
+}
+
+async function getLeaveEmailPayload(requestId: string, tenantId: string) {
+  const r = await query(
+    `SELECT lr.start_date, lr.end_date, lr.total_days, lt.name AS type_name,
+            e.first_name, e.last_name,
+            COALESCE(NULLIF(TRIM(u.email), ''), NULLIF(TRIM(e.email), '')) AS to_email
+     FROM leave_requests lr
+     JOIN leave_types lt ON lt.id = lr.leave_type_id
+     JOIN employees e ON e.id = lr.employee_id
+     LEFT JOIN users u ON u.id = e.user_id
+     WHERE lr.id = $1 AND lr.tenant_id = $2`,
+    [requestId, tenantId]
+  );
+  const row = r.rows[0];
+  if (!row?.to_email) return null;
+  return {
+    toEmail: row.to_email as string,
+    employeeName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Employee',
+    leaveTypeName: row.type_name as string,
+    startDate: String(row.start_date).slice(0, 10),
+    endDate: String(row.end_date).slice(0, 10),
+    totalDays: row.total_days,
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -86,7 +116,7 @@ export async function POST(request: Request) {
     const req = reqResult.rows[0];
     const currentLevel = req.current_level || 1;
 
-    const userRole = request.headers.get('x-user-role') || '';
+    const userRole = (request.headers.get('x-user-role') || '').toUpperCase().replace(/-/g, '_');
 
     // 2. Handle Rejection
     if (status === 'rejected') {
@@ -99,13 +129,29 @@ export async function POST(request: Request) {
          VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
         [requestId, activeApproverId, tenantId, currentLevel, 'rejected', remarks]
       );
+      const tenantName = await getTenantName(tenantId);
+      const payload = await getLeaveEmailPayload(requestId, tenantId);
+      if (payload) {
+        await sendLeaveDecisionToEmployee({
+          ...payload,
+          tenantName,
+          decision: 'rejected',
+          remarks: remarks ?? null,
+        });
+      }
       return NextResponse.json({ success: true, message: 'Request rejected' });
     }
 
     // 3. Handle Approval
     const nextLevel = currentLevel + 1;
     // Admins and HR can perform final approval in one step
-    const isFinalApproval = currentLevel >= 3 || userRole === 'GLOBAL_ADMIN' || userRole === 'HR_MANAGER';
+    const isFinalApproval =
+      currentLevel >= 3 ||
+      userRole === 'GLOBAL_ADMIN' ||
+      userRole === 'HR_MANAGER' ||
+      userRole === 'HR' ||
+      userRole === 'ADMIN' ||
+      userRole === 'SUPER_ADMIN';
 
     if (!isFinalApproval) {
       // Advance to next level
@@ -176,6 +222,19 @@ export async function POST(request: Request) {
        VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
       [requestId, activeApproverId, tenantId, currentLevel, 'approved', remarks]
     );
+
+    if (isFinalApproval) {
+      const tenantName = await getTenantName(tenantId);
+      const payload = await getLeaveEmailPayload(requestId, tenantId);
+      if (payload) {
+        await sendLeaveDecisionToEmployee({
+          ...payload,
+          tenantName,
+          decision: 'approved',
+          remarks: remarks ?? null,
+        });
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 

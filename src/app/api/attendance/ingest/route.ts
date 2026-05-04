@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
 import { verifyQrToken } from '@/lib/utils/qr';
 import { validateNetworkAccess, getClientIp } from '@/lib/attendance/network-validator';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
 
 
 /**
@@ -16,7 +18,7 @@ export async function POST(request: Request) {
     let employeeId = manualEmployeeId;
     let tenantId = manualTenantId;
 
-    // 1. Decoupled Token Verification
+    // 1. Decoupled Token/Session Verification
     if (sourceType === 'qr') {
       if (!token) return NextResponse.json({ error: 'QR token required' }, { status: 400 });
       
@@ -26,6 +28,20 @@ export async function POST(request: Request) {
       }
       employeeId = verification.employeeId;
       tenantId = verification.tenantId;
+    } else if (sourceType === 'web') {
+      // Secure Web Attendance
+      const cookieStore = await cookies();
+      const sessionToken = cookieStore.get('auth-token')?.value;
+      if (!sessionToken) return NextResponse.json({ error: 'Session required for web attendance' }, { status: 401 });
+      
+      const payload = await verifyToken(sessionToken);
+      if (!payload || (employeeId && payload.employeeId !== employeeId)) {
+        return NextResponse.json({ error: 'Unauthorized web attendance' }, { status: 403 });
+      }
+      employeeId = payload.employeeId; // Always use payload ID for web
+      tenantId = payload.tenantId;
+    } else {
+      return NextResponse.json({ error: 'Invalid or missing capture source' }, { status: 400 });
     }
 
     if (!employeeId || !tenantId) {

@@ -10,6 +10,8 @@ export default function MyQrPage() {
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(60);
 
+  const [origin, setOrigin] = useState('');
+
   const refreshToken = async () => {
     setLoading(true);
     const result = await getMyQrToken();
@@ -21,6 +23,7 @@ export default function MyQrPage() {
   };
 
   useEffect(() => {
+    setOrigin(window.location.origin);
     refreshToken();
   }, []);
 
@@ -50,7 +53,7 @@ export default function MyQrPage() {
             token && (
               <div className="relative group p-4 bg-white rounded-xl">
                  <QRCodeCanvas 
-                   value={`${window.location.origin}/attendance/scan?token=${token}`} 
+                   value={`${origin}/attendance/scan?token=${token}`} 
                    size={250} 
                    level="H" 
                    includeMargin={true} 

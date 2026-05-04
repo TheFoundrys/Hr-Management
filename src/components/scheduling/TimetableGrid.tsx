@@ -35,7 +35,7 @@ export function TimetableGrid({ entries, days, timeSlots, onAddEntry }: Timetabl
             <tr className="bg-muted/50 border-b">
               <th className="p-4 text-left font-semibold text-xs border-r w-32 uppercase tracking-wider text-muted-foreground">Time</th>
               {days.map(day => (
-                <th key={day} className="p-4 text-center font-semibold text-xs min-w-[200px] uppercase tracking-wider text-muted-foreground">
+                <th key={day} className="p-4 text-center font-semibold text-xs min-w-[120px] sm:min-w-[160px] md:min-w-[200px] uppercase tracking-wider text-muted-foreground">
                   {day}
                 </th>
               ))}

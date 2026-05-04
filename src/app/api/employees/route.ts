@@ -23,17 +23,32 @@ export async function GET(request: Request) {
     const search = searchParams.get('search');
     const scope = searchParams.get('scope'); // 'all' or 'team'
 
-    // Check RBAC permission
-    if (!hasPermission(role, 'VIEW_ALL_EMPLOYEES') && !hasPermission(role, 'VIEW_TEAM')) {
+    const canListEmployees =
+      hasPermission(role, 'VIEW_ALL_EMPLOYEES') ||
+      hasPermission(role, 'VIEW_TEAM') ||
+      hasPermission(role, 'VIEW_ATTENDANCE') ||
+      hasPermission(role, 'VIEW_LEAVE');
+    if (!canListEmployees) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const canViewPayroll = hasPermission(baseRole, 'MANAGE_PAYROLL');
 
     // Core employee fields
+    const userJoinSql = `
+      LEFT JOIN users u ON u.id = e.user_id
+      LEFT JOIN LATERAL (
+        SELECT u2.id, u2.role FROM users u2
+        WHERE u2.tenant_id = e.tenant_id
+          AND e.user_id IS NULL
+          AND LOWER(TRIM(u2.email)) = LOWER(TRIM(e.email))
+        LIMIT 1
+      ) ub ON true
+    `;
     const empFields = `
-      e.id, e.university_id, e.first_name, e.last_name, e.email, e.phone, e.role, e.is_active,
-      e.department_id, e.designation_id, e.manager_id, e.employee_id
+      e.id, e.university_id as identifier, e.first_name, e.last_name, e.email, e.phone, e.role, e.is_active,
+      e.department_id, e.designation_id, e.manager_id, e.employee_id,
+      COALESCE(u.id, ub.id) as user_account_id, COALESCE(u.role, ub.role, 'EMPLOYEE') as access_role
       ${canViewPayroll ? ', e.salary_basic, e.salary_hra, e.salary_allowances, e.salary_deductions' : ''}
     `;
 
@@ -56,6 +71,7 @@ export async function GET(request: Request) {
         SELECT ${empFields}, d.name as department_name, ds.name as designation_name,
                COALESCE(m.first_name, '') || ' ' || COALESCE(m.last_name, '') as reporting_name
         FROM employees e
+        ${userJoinSql}
         LEFT JOIN departments d ON e.department_id = d.id
         LEFT JOIN designations ds ON e.designation_id = ds.id
         LEFT JOIN employees m ON e.manager_id = m.id
@@ -74,6 +90,7 @@ export async function GET(request: Request) {
                  m.first_name || ' ' || m.last_name as reporting_name,
                  (SELECT COUNT(*) FROM employees r WHERE r.manager_id = e.id) as reports_count
           FROM employees e
+          ${userJoinSql}
           LEFT JOIN departments d ON e.department_id = d.id
           LEFT JOIN designations ds ON e.designation_id = ds.id
           LEFT JOIN employees m ON e.manager_id = m.id
@@ -86,7 +103,10 @@ export async function GET(request: Request) {
         }
         queryString += ' ORDER BY e.first_name';
       } else {
-        const subFields = `id, manager_id, first_name, last_name, email, university_id, employee_id, department_id, designation_id, role, phone, is_active ${canViewPayroll ? ', salary_basic, salary_hra, salary_allowances, salary_deductions' : ''}`;
+        if (!currentEmployeeId) {
+          return NextResponse.json({ success: true, employees: [] });
+        }
+        const subFields = `id, tenant_id, user_id, manager_id, first_name, last_name, email, university_id as identifier, employee_id, department_id, designation_id, role, phone, is_active ${canViewPayroll ? ', salary_basic, salary_hra, salary_allowances, salary_deductions' : ''}`;
 
         queryString = `
           WITH RECURSIVE subordinates AS (
@@ -101,8 +121,17 @@ export async function GET(request: Request) {
           )
           SELECT s.*, d.name as department_name, ds.name as designation_name,
                  m.first_name || ' ' || m.last_name as reporting_name,
-                 (SELECT COUNT(*) FROM employees r WHERE r.manager_id = s.id) as reports_count
+                 (SELECT COUNT(*) FROM employees r WHERE r.manager_id = s.id) as reports_count,
+                 COALESCE(u.id, ub.id) as user_account_id, COALESCE(u.role, ub.role, 'EMPLOYEE') as access_role
           FROM subordinates s
+          LEFT JOIN users u ON u.id = s.user_id
+          LEFT JOIN LATERAL (
+            SELECT u2.id, u2.role FROM users u2
+            WHERE u2.tenant_id = s.tenant_id
+              AND s.user_id IS NULL
+              AND LOWER(TRIM(u2.email)) = LOWER(TRIM(s.email))
+            LIMIT 1
+          ) ub ON true
           LEFT JOIN departments d ON s.department_id = d.id
           LEFT JOIN designations ds ON s.designation_id = ds.id
           LEFT JOIN employees m ON s.manager_id = m.id

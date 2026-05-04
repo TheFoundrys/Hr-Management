@@ -66,8 +66,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       // Generic link — create new employee
       const empCode = `ONB-${Date.now().toString().slice(-6)}`;
       const insertRes = await query(
-        `INSERT INTO employees (employee_id, first_name, last_name, email, phone, tenant_id, status, is_active, join_date)
-         VALUES ($1, $2, $3, $4, $5, $6, 'onboarding', true, CURRENT_DATE)
+        `INSERT INTO employees (university_id, first_name, last_name, email, phone, tenant_id, is_active, join_date)
+         VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_DATE)
          RETURNING id`,
         [empCode, firstName, lastName, email, phoneNumber, link.tenant_id]
       );

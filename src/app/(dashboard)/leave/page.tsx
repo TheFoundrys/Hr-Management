@@ -15,9 +15,11 @@ import {
   MoreVertical,
   CalendarDays,
   History,
-  FileText
+  FileText,
+  Home
 } from 'lucide-react';
 import { hasPermission } from '@/lib/auth/rbac';
+import { DEFAULT_LEAVE_POLICY } from '@/lib/types/tenant';
 
 interface LeaveBalance {
   type_name: string;
@@ -43,16 +45,16 @@ interface LeaveRequest {
   attachment_url?: string;
 }
 
-type TabType = 'summary' | 'logs' | 'manage';
+type TabType = 'summary' | 'logs' | 'wfh' | 'manage';
 
-export default function LeavePage() {
+function LeavePageContent() {
   const { user } = useAuthStore();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>((searchParams.get('tab') as TabType) || 'summary');
 
   useEffect(() => {
     const tab = searchParams.get('tab') as TabType;
-    if (tab && ['summary', 'logs', 'manage'].includes(tab)) {
+    if (tab && ['summary', 'logs', 'wfh', 'manage'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -77,8 +79,24 @@ export default function LeavePage() {
   const [adminBalances, setAdminBalances] = useState<any[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const isHRAdmin = ['ADMIN', 'HR', 'HR_MANAGER', 'SUPER_ADMIN'].includes(user?.role || '');
-  const canManageLeave = hasPermission(user?.role || '', 'MANAGE_LEAVE');
+  const [wfhMine, setWfhMine] = useState<any[]>([]);
+  const [wfhPending, setWfhPending] = useState<any[]>([]);
+  const [wfhWeekUsed, setWfhWeekUsed] = useState(0);
+  const [wfhWeekMax, setWfhWeekMax] = useState(5);
+  const [wfhLoading, setWfhLoading] = useState(false);
+  const [wfhForm, setWfhForm] = useState({
+    requestDate: '',
+    isHalfDay: false,
+    halfDayType: 'morning' as 'morning' | 'afternoon',
+    reason: '',
+  });
+
+  const canManageLeave = hasPermission(
+    user?.role || '',
+    'MANAGE_LEAVE',
+    user?.tenantSettings?.roles
+  );
+  const leavePolicy = { ...DEFAULT_LEAVE_POLICY, ...(user?.tenantSettings?.leave_policy || {}) };
 
   const fetchData = async () => {
     setLoading(true);
@@ -115,6 +133,30 @@ export default function LeavePage() {
     fetchData();
   }, [user, activeTab]);
 
+  const fetchWfh = async () => {
+    setWfhLoading(true);
+    try {
+      const res = await fetch('/api/wfh/requests');
+      const data = await res.json();
+      if (data.success) {
+        setWfhMine(data.mine || []);
+        setWfhPending(data.pendingApprovals || []);
+        setWfhWeekUsed(Number(data.weekDaysUsed) || 0);
+        setWfhWeekMax(Number(data.weekMax) || 5);
+      } else if (data.error) {
+        console.warn('[LeavePage] WFH:', data.error);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setWfhLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'wfh') fetchWfh();
+  }, [activeTab, user]);
+
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -135,6 +177,43 @@ export default function LeavePage() {
       } else {
         alert(data.error || 'Failed to apply leave');
       }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleWfhSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/wfh/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(wfhForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWfhForm({ requestDate: '', isHalfDay: false, halfDayType: 'morning', reason: '' });
+        fetchWfh();
+      } else {
+        alert(data.error || 'WFH request failed');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleWfhAction = async (requestId: string, status: string) => {
+    const remarks = prompt(`Enter remarks for ${status}:`);
+    if (remarks === null) return;
+    try {
+      const res = await fetch('/api/wfh/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, status, remarks }),
+      });
+      const data = await res.json();
+      if (data.success) fetchWfh();
+      else alert(data.error || 'Action failed');
     } catch (err) {
       console.error(err);
     }
@@ -162,14 +241,16 @@ export default function LeavePage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      approved: 'bg-green-100 text-green-700 border-green-200',
-      rejected: 'bg-red-100 text-red-700 border-red-200',
-      pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    }[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+    const s = (status || '').toLowerCase();
+    const styles =
+      {
+        approved: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25',
+        rejected: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25',
+        pending: 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/25',
+      }[s] || 'bg-muted text-muted-foreground border-border';
 
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles}`}>
+      <span className={`px-2.5 py-0.5 rounded-md text-xs font-medium border ${styles}`}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
@@ -177,6 +258,7 @@ export default function LeavePage() {
 
   const totalAvailable = balances.reduce((acc, b) => acc + (b.type_code === 'UL' ? 0 : parseFloat(b.remaining_days || '0')), 0);
   const totalConsumed = balances.reduce((acc, b) => acc + parseFloat(b.used_days || '0'), 0);
+  const pendingCount = requests.filter((r) => (r.status || '').toLowerCase() === 'pending').length;
 
   return (
     <div className="w-full py-8 px-6 space-y-6">
@@ -217,10 +299,10 @@ export default function LeavePage() {
             <Clock size={24} />
           </div>
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Consumable Leave</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending requests</p>
             <div className="mt-1 flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-foreground">{totalAvailable.toFixed(1)}</span>
-              <span className="text-xs font-medium text-muted-foreground/60">Days</span>
+              <span className="text-2xl font-bold text-foreground">{pendingCount}</span>
+              <span className="text-xs font-medium text-muted-foreground/60">Open</span>
             </div>
           </div>
         </div>
@@ -255,7 +337,16 @@ export default function LeavePage() {
           Leave Logs
           {activeTab === 'logs' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
         </button>
-        {isHRAdmin && (
+        <button
+          type="button"
+          onClick={() => setActiveTab('wfh')}
+          className={`px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${activeTab === 'wfh' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Home size={16} className="opacity-80" />
+          WFH
+          {activeTab === 'wfh' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+        </button>
+        {canManageLeave && (
           <button 
             onClick={() => setActiveTab('manage')}
             className={`px-4 py-2 text-sm font-medium transition-colors relative ${activeTab === 'manage' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -321,7 +412,7 @@ export default function LeavePage() {
                           <p className="text-sm font-medium text-foreground">{req.type_name}</p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(req.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - {new Date(req.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                            <span className="mx-2">•</span>
+                            <span className="mx-2">·</span>
                             {req.total_days} Days
                           </p>
                         </div>
@@ -344,17 +435,38 @@ export default function LeavePage() {
               </h3>
               <div className="space-y-4">
                 <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-1">Standard Policy</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Apply at least 2 days in advance for casual leaves and 1 week for planned leaves.</p>
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-1">Your organization</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {user?.tenantSettings?.leave_policy?.summary_text ||
+                      'Rules below are enforced when you apply for leave. Values can be customized per tenant in settings.'}
+                  </p>
                 </div>
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <div className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
-                    Max 2 days of SL can be taken without medical certificate.
+                <ul className="space-y-2 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                    Advance notice: at least {leavePolicy.advance_notice_days} calendar day(s) before the first day of leave.
                   </li>
-                  <li className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <div className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
-                    Half-day leaves are available for Morning/Afternoon sessions.
+                  {leavePolicy.max_consecutive_days > 0 ? (
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                      Maximum {leavePolicy.max_consecutive_days} consecutive day(s) per request.
+                    </li>
+                  ) : null}
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                    Sick leave over {leavePolicy.sick_leave_max_days_without_certificate} day(s) requires an attachment or certificate reference.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                    Department overlap cap: at most {leavePolicy.dept_max_concurrent_approved} approved leave(s) per department for overlapping dates.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                    Half-day leaves support morning or afternoon sessions.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                    Work from home: use the <strong className="text-foreground">WFH</strong> tab — up to 5 day equivalents per calendar week, full or half day, approval required (same pattern as Keka-style WFH).
                   </li>
                 </ul>
               </div>
@@ -404,9 +516,28 @@ export default function LeavePage() {
                         {getStatusBadge(req.status)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical size={16} />
-                        </button>
+                        {canManageLeave && req.status === 'pending' ? (
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => handleAction(req.id, 'approved')}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                              title="Approve"
+                            >
+                              <CheckCircle2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleAction(req.id, 'rejected')}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Reject"
+                            >
+                              <XCircle size={18} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button className="text-muted-foreground hover:text-foreground">
+                            <MoreVertical size={16} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -422,6 +553,166 @@ export default function LeavePage() {
           </div>
         </div>
       )}
+      {activeTab === 'wfh' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">This week (WFH)</p>
+              <p className="mt-2 text-2xl font-bold text-foreground">
+                {wfhWeekUsed.toFixed(1)} <span className="text-sm font-medium text-muted-foreground">/ {wfhWeekMax} days</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Request WFH</h3>
+            <form onSubmit={handleWfhSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Date</label>
+                <input
+                  type="date"
+                  required
+                  value={wfhForm.requestDate}
+                  onChange={(e) => setWfhForm((f) => ({ ...f, requestDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background"
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={wfhForm.isHalfDay}
+                    onChange={(e) => setWfhForm((f) => ({ ...f, isHalfDay: e.target.checked }))}
+                    className="rounded border-border"
+                  />
+                  <span className="text-sm text-foreground">Half day</span>
+                </label>
+              </div>
+              {wfhForm.isHalfDay && (
+                <div className="md:col-span-2 flex gap-4 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="wfhHalf"
+                      checked={wfhForm.halfDayType === 'morning'}
+                      onChange={() => setWfhForm((f) => ({ ...f, halfDayType: 'morning' }))}
+                    />
+                    Morning
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="wfhHalf"
+                      checked={wfhForm.halfDayType === 'afternoon'}
+                      onChange={() => setWfhForm((f) => ({ ...f, halfDayType: 'afternoon' }))}
+                    />
+                    Afternoon
+                  </label>
+                </div>
+              )}
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Reason</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={wfhForm.reason}
+                  onChange={(e) => setWfhForm((f) => ({ ...f, reason: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background resize-none"
+                  placeholder="Why do you need WFH on this date?"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+                >
+                  Submit WFH request
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {canManageLeave && wfhPending.length > 0 && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+              <div className="px-5 py-3 border-b border-border font-semibold text-foreground">Pending WFH approvals</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-4 py-2">Employee</th>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Duration</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {wfhPending.map((w: any) => (
+                      <tr key={w.id}>
+                        <td className="px-4 py-2">
+                          {(w.first_name || '') + ' ' + (w.last_name || '')} ({w.emp_string_id || w.employee_id})
+                        </td>
+                        <td className="px-4 py-2">{String(w.request_date).slice(0, 10)}</td>
+                        <td className="px-4 py-2">{w.is_half_day ? `Half (${w.half_day_type || ''})` : 'Full day'}</td>
+                        <td className="px-4 py-2 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleWfhAction(w.id, 'approved')}
+                            className="p-1 text-green-600 hover:bg-green-500/10 rounded"
+                            title="Approve"
+                          >
+                            <CheckCircle2 size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleWfhAction(w.id, 'rejected')}
+                            className="p-1 text-red-600 hover:bg-red-500/10 rounded"
+                            title="Reject"
+                          >
+                            <XCircle size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-border font-semibold text-foreground">My WFH requests</div>
+            {wfhLoading ? (
+              <div className="p-10 flex justify-center">
+                <Loader2 className="animate-spin text-primary" size={24} />
+              </div>
+            ) : wfhMine.length === 0 ? (
+              <p className="p-8 text-sm text-muted-foreground text-center">No WFH requests yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="px-4 py-2">Date</th>
+                      <th className="px-4 py-2">Duration</th>
+                      <th className="px-4 py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {wfhMine.map((w: any) => (
+                      <tr key={w.id}>
+                        <td className="px-4 py-2">{String(w.request_date).slice(0, 10)}</td>
+                        <td className="px-4 py-2">{w.is_half_day ? `Half (${w.half_day_type || ''})` : 'Full day'}</td>
+                        <td className="px-4 py-2">{getStatusBadge(w.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'manage' && (
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
@@ -437,7 +728,7 @@ export default function LeavePage() {
                   placeholder="Search Employee by ID (e.g. TO-00095)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-muted/30 border border-border rounded-none text-xs font-bold uppercase tracking-tight outline-none focus:border-primary transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-muted/30 border border-border rounded-xl text-xs font-bold uppercase tracking-tight outline-none focus:border-primary transition-all"
                 />
               </div>
               <button 
@@ -452,7 +743,7 @@ export default function LeavePage() {
                    }
                    setLoading(false);
                 }}
-                className="px-8 py-2 bg-primary text-secondary rounded-none text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+                className="px-8 py-2 bg-primary text-secondary rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
               >
                 Fetch
               </button>
@@ -460,7 +751,7 @@ export default function LeavePage() {
           </div>
 
           {adminBalances.length > 0 && (
-            <div className="bg-card border border-border rounded-none overflow-hidden shadow-sm">
+            <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-muted/50 border-b border-border">
@@ -483,7 +774,7 @@ export default function LeavePage() {
                           defaultValue={bal.allocated_days}
                           step="0.5"
                           id={`alloc-${bal.id}`}
-                          className="w-24 px-2 py-1 bg-muted/30 border border-border rounded-none text-[10px] font-black outline-none focus:border-primary"
+                          className="w-24 px-2 py-1 bg-muted/30 border border-border rounded-xl text-[10px] font-black outline-none focus:border-primary"
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -492,7 +783,7 @@ export default function LeavePage() {
                           defaultValue={bal.remaining_days}
                           step="0.01"
                           id={`rem-${bal.id}`}
-                          className="w-24 px-2 py-1 bg-muted/30 border border-border rounded-none text-[10px] font-black outline-none focus:border-primary"
+                          className="w-24 px-2 py-1 bg-muted/30 border border-border rounded-xl text-[10px] font-black outline-none focus:border-primary"
                         />
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -520,7 +811,7 @@ export default function LeavePage() {
                             setIsUpdating(false);
                           }}
                           disabled={isUpdating}
-                          className="px-4 py-2 bg-secondary text-secondary-foreground text-[8px] font-black uppercase tracking-widest rounded-none border border-border hover:bg-muted disabled:opacity-50"
+                          className="px-4 py-2 bg-secondary text-secondary-foreground text-[8px] font-black uppercase tracking-widest rounded-xl border border-border hover:bg-muted disabled:opacity-50"
                         >
                           Update
                         </button>
@@ -643,5 +934,17 @@ export default function LeavePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LeavePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    }>
+      <LeavePageContent />
+    </Suspense>
   );
 }

@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "UniStaff - University Staff Management System",
-  description: "Production-ready University Staff Management System with biometric attendance, payroll, and document management",
+  title: "HRMS - Enterprise Human Resource Management System",
+  description: "Production-ready Multi-tenant HR Management System with biometric attendance, payroll, and document management",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-color="navy" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

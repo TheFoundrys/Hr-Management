@@ -56,14 +56,20 @@ export default function AttendancePage() {
     }
   };
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchRecords();
-    const isToday = date === new Date().toISOString().split('T')[0];
-    if (isToday) {
-      const interval = setInterval(() => fetchRecords(true), 5000);
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const isAdminToday = isAdmin && date === todayStr;
+    const isOwnCurrentMonth =
+      !isAdmin &&
+      month === String(today.getMonth() + 1) &&
+      year === String(today.getFullYear());
+    if (isAdminToday || isOwnCurrentMonth) {
+      const interval = setInterval(() => fetchRecords(true), 10_000);
       return () => clearInterval(interval);
     }
-  }, [date, month, year, status, user]);
+  }, [date, month, year, status, user, isAdmin]);
 
   const clock = async () => {
     if (!user) return;

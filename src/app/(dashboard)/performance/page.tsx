@@ -48,7 +48,7 @@ export default function PerformancePage() {
             Evaluate and track institutional workforce excellence
           </p>
         </div>
-        <button className="flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-none font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+        <button className="flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
           <Plus size={16} strokeWidth={3} /> Initiate New Cycle
         </button>
       </header>
@@ -74,9 +74,9 @@ export default function PerformancePage() {
       </div>
 
       {/* Review Queue */}
-      <div className="bg-card border border-border rounded-none shadow-2xl">
+      <div className="bg-card border border-border rounded-xl shadow-2xl">
          <div className="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 bg-muted/30 border border-border px-4 py-2.5 rounded-none flex-1 max-w-md shadow-inner">
+            <div className="flex items-center gap-3 bg-muted/30 border border-border px-4 py-2.5 rounded-xl flex-1 max-w-md shadow-inner">
                <Search size={16} className="text-muted-foreground" />
                <input type="text" placeholder="Search employee or cycle..." className="bg-transparent border-none outline-none text-xs font-bold uppercase tracking-tight w-full" />
             </div>
@@ -122,14 +122,14 @@ export default function PerformancePage() {
                        <td className="px-8 py-6 text-xs font-bold text-foreground uppercase">{r.cycle_name}</td>
                        <td className="px-8 py-6">
                           <div className="flex items-center gap-2">
-                             <div className="flex-1 h-1.5 bg-muted rounded-none overflow-hidden max-w-[80px]">
+                             <div className="flex-1 h-1.5 bg-muted rounded-xl overflow-hidden max-w-[80px]">
                                 <div className="h-full bg-primary" style={{ width: `${(Number(r.score) / 5) * 100}%` }} />
                              </div>
                              <span className="text-[10px] font-black">{r.score > 0 ? r.score : 'N/A'}</span>
                           </div>
                        </td>
                        <td className="px-8 py-6">
-                          <span className={`text-[9px] px-3 py-1 rounded-none font-black uppercase tracking-widest ${
+                          <span className={`text-[9px] px-3 py-1 rounded-xl font-black uppercase tracking-widest ${
                             r.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600' : 
                             r.status === 'in_progress' ? 'bg-amber-500/10 text-amber-600' : 
                             'bg-muted text-muted-foreground'

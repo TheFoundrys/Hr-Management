@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
 import { verifyToken } from '@/lib/auth/jwt';
 import { cookies } from 'next/headers';
-import { hashPassword } from '@/lib/auth/password';
+import { handleTenantOnboard } from '../../../../../controllers/tenantOnboarding';
 
 export async function GET(request: Request) {
   try {
@@ -36,71 +36,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { name, adminEmail, adminName, adminPassword, tenantType = 'EDUCATION' } = await request.json();
+    const body = await request.json();
+    const { name, adminEmail, adminName, adminPassword, tenantType = 'EDUCATION', orgType = 'university' } = body;
 
     if (!name || !adminEmail || !adminPassword) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Auto-generate a slug for subdomain (internal use only)
-    const generatedSubdomain = name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
-
-    // 1. Create Tenant
-    const tenantResult = await query(
-      'INSERT INTO tenants (name, subdomain, tenant_type) VALUES ($1, $2, $3) RETURNING id',
-      [name, generatedSubdomain, tenantType]
-    );
-    const tenantId = tenantResult.rows[0].id;
-
-    // 2. Create Default Admin User for this tenant
-    const passwordHash = await hashPassword(adminPassword);
-    const userResult = await query(
-      `INSERT INTO users (tenant_id, name, email, password_hash, role, is_active)
-       VALUES ($1, $2, $3, $4, 'ADMIN', true)
-       RETURNING id`,
-      [tenantId, adminName || 'Admin', adminEmail.toLowerCase(), passwordHash]
-    );
-
-    // 3. Seed Standard Data based on Tenant Type
-    if (tenantType === 'EDUCATION') {
-      const depts = [
-        'Executive', 'DeepTech_AI', 'DeepTech_CyberSecurity', 'DeepTech_Quantum', 
-        'DeepTech_Blockchain', 'Entrepreneurship', 'Sustainability', 'Energy', 
-        'Programs', 'Faculty_Development', 'Engineering', 'Research', 
-        'Innovation_Lab', 'Startup_Incubation', 'Product', 'HR', 'Operations', 
-        'Admissions', 'Partnerships', 'Marketing', 'Community', 'Finance', 'Legal'
-      ];
-      const desigs = ['Professor', 'Dean', 'Registrar', 'Assistant Professor', 'Director', 'Principal'];
-      
-      for (const d of depts) {
-        await query('INSERT INTO departments (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [tenantId, d]);
+    // Map simple superadmin input to rich onboarding structure
+    const onboardingPayload = {
+      org: {
+        name: name,
+        org_type: orgType,
+        org_size: '1-50',
+        address: 'N/A',
+        country: 'India',
+        timezone: 'Asia/Kolkata',
+        tenant_type: tenantType
+      },
+      admin: {
+        email: adminEmail,
+        password: adminPassword,
+        full_name: adminName || 'Admin'
+      },
+      hierarchy: {
+        reporting_type: 'linear',
+        label_vocabulary: tenantType === 'EDUCATION' ? 'university' : 'corporate'
+      },
+      modules: {
+        leave: true,
+        attendance: true,
+        payroll: true,
+        performance: true,
+        recruitment: true,
+        documents: true
+      },
+      structure: {
+        source: 'template',
+        template_id: tenantType === 'EDUCATION' ? 'template-university-std' : 'template-corporate-std'
       }
-      for (const d of desigs) {
-        await query('INSERT INTO designations (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [tenantId, d]);
-      }
-    } else {
-      const depts = ['Engineering', 'Product', 'Sales', 'Marketing', 'Operations', 'HR', 'Finance', 'Legal'];
-      const desigs = ['CEO', 'Manager', 'TL', 'Employee']; // Hierarchical Designations
-      
-      for (const d of depts) {
-        await query('INSERT INTO departments (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [tenantId, d]);
-      }
-      for (const d of desigs) {
-        await query('INSERT INTO designations (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [tenantId, d]);
-      }
-    }
+    };
 
-    return NextResponse.json({
-      success: true,
-      message: 'Tenant and admin user created successfully',
-      tenantId: tenantId,
-      userId: userResult.rows[0].id
-    }, { status: 201 });
+    const result = await handleTenantOnboard({ body: onboardingPayload });
+
+    return NextResponse.json(result.data, { status: result.status });
+
   } catch (error: any) {
-    console.error('Create tenant error:', error);
+    console.error('Unified Create tenant error:', error);
     if (error.code === '23505') {
       return NextResponse.json({ error: 'Subdomain or email already exists' }, { status: 409 });
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

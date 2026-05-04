@@ -53,17 +53,17 @@ export default function ReportsPage() {
       </header>
 
       {/* Controls Container */}
-      <div className="bg-card border border-border p-5 rounded-none shadow-sm flex flex-col md:flex-row items-center gap-4">
+      <div className="bg-card border border-border p-5 rounded-xl shadow-sm flex flex-col md:flex-row items-center gap-4">
         <div className="flex flex-1 gap-4 w-full">
            <div className="flex-1 space-y-1.5">
               <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Reporting Month</label>
-              <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="w-full px-4 py-3 bg-muted border border-border rounded-none text-sm font-bold text-foreground outline-none focus:border-primary transition-all">
+              <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all">
                 {MONTHS.map((m, i) => <option key={i} value={i + 1} className="bg-card">{m}</option>)}
               </select>
            </div>
            <div className="flex-1 space-y-1.5">
               <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground ml-1">Financial Year</label>
-              <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-full px-4 py-3 bg-muted border border-border rounded-none text-sm font-bold text-foreground outline-none focus:border-primary transition-all">
+              <select value={year} onChange={(e) => setYear(parseInt(e.target.value))} className="w-full px-4 py-3 bg-muted border border-border rounded-xl text-sm font-bold text-foreground outline-none focus:border-primary transition-all">
                 {[2024, 2025, 2026, 2027].map((y) => <option key={y} value={y} className="bg-card">{y}</option>)}
               </select>
            </div>
@@ -73,7 +73,7 @@ export default function ReportsPage() {
            <button 
              onClick={fetchReport} 
              disabled={loading} 
-             className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-3.5 rounded-none font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/10 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+             className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/10 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
            >
              {loading ? <Loader2 className="animate-spin" size={16} /> : <BarChart3 size={16} />}
              Generate
@@ -81,7 +81,7 @@ export default function ReportsPage() {
            {report.length > 0 && (
              <button 
                onClick={downloadCSV} 
-               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-muted border border-border text-foreground px-6 py-3.5 rounded-none font-black text-[10px] uppercase tracking-widest hover:bg-card transition-all"
+               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-muted border border-border text-foreground px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-card transition-all"
              >
                <Download size={16} /> Export CSV
              </button>
@@ -90,9 +90,9 @@ export default function ReportsPage() {
       </div>
 
       {/* Report Results */}
-      <div className="bg-card border border-border rounded-none shadow-sm overflow-hidden">
+      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
         {report.length > 0 ? (
-          <div className="overflow-x-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
@@ -120,7 +120,7 @@ export default function ReportsPage() {
           </div>
         ) : (
           <div className="py-24 text-center space-y-4">
-             <div className="w-16 h-16 bg-muted rounded-none flex items-center justify-center mx-auto text-muted-foreground">
+             <div className="w-16 h-16 bg-muted rounded-xl flex items-center justify-center mx-auto text-muted-foreground">
                 <BarChart3 size={32} strokeWidth={1} />
              </div>
              <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em]">

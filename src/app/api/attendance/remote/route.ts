@@ -113,13 +113,27 @@ export async function GET(request: Request) {
     if (!employeeId) return NextResponse.json({ success: true, attendance: null });
 
     const res = await query(
-      'SELECT check_in, check_out FROM attendance WHERE employee_id = $1 AND date = $2',
+      `SELECT id, date, check_in, check_out, remote_metadata, is_remote, working_hours, status, source
+       FROM attendance WHERE employee_id = $1 AND date = $2`,
       [employeeId, today]
     );
 
-    return NextResponse.json({ 
-      success: true, 
-      attendance: res.rows[0] || null 
+    let attendance = res.rows[0] || null;
+    if (attendance?.remote_metadata && typeof attendance.remote_metadata === 'string') {
+      try {
+        attendance = { ...attendance, remote_metadata: JSON.parse(attendance.remote_metadata) };
+      } catch {
+        attendance = { ...attendance, remote_metadata: { sessions: [] } };
+      }
+    }
+    if (attendance && attendance.remote_metadata && typeof attendance.remote_metadata === 'object') {
+      const rm = attendance.remote_metadata as { sessions?: unknown[] };
+      if (!Array.isArray(rm.sessions)) rm.sessions = [];
+    }
+
+    return NextResponse.json({
+      success: true,
+      attendance,
     });
 
   } catch (error) {

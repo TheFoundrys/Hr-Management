@@ -3,14 +3,32 @@ import { query } from '@/lib/db/postgres';
 import { getTenantId } from '@/lib/utils/tenant';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
+import { hasPermission } from '@/lib/auth/rbac';
 
 export async function GET(request: Request) {
   try {
-    const tenantId = await getTenantId(request);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
+    const role = (payload.role || 'STAFF').toUpperCase();
+    const isAdmin = hasPermission(role, 'MANAGE_PAYROLL');
+    
+    const tenantId = payload.tenantId;
     const { searchParams } = new URL(request.url);
     const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
-    const employeeId = searchParams.get('employeeId');
+    let employeeId = searchParams.get('employeeId');
+
+    // SECURITY: If not admin/HR, can only see own records
+    if (!isAdmin) {
+      employeeId = payload.employeeId || null;
+    }
 
     const filter = employeeId
       ? `AND p.user_id = $4`
@@ -21,6 +39,7 @@ export async function GET(request: Request) {
       `SELECT 
         p.*, 
         COALESCE(e.first_name || ' ' || e.last_name, 'Unknown Employee') as employee_name, 
+        COALESCE(e.university_id, p.user_id) as identifier,
         COALESCE(e.university_id, p.user_id) as employee_id
        FROM payslip_records p
        LEFT JOIN employees e ON p.user_id = e.university_id
@@ -28,8 +47,6 @@ export async function GET(request: Request) {
        ORDER BY p.generated_at DESC`,
       params
     );
-
-
 
     return NextResponse.json({ success: true, payslips: result.rows });
   } catch (error) {
@@ -40,7 +57,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const tenantId = await getTenantId(request);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const payload = await verifyToken(token);
+    const role = (payload?.role || 'STAFF').toUpperCase();
+    if (!payload || !hasPermission(role, 'MANAGE_PAYROLL')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const tenantId = payload.tenantId;
     const body = await request.json();
     const { month, year, employeeId, basic: overrideBasic, hra: overrideHra, allowances: overrideAllowances, deductions: overrideDeductions } = body;
 
@@ -205,7 +232,17 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const tenantId = await getTenantId(request);
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const payload = await verifyToken(token);
+    const role = (payload?.role || 'STAFF').toUpperCase();
+    if (!payload || !hasPermission(role, 'MANAGE_PAYROLL')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const tenantId = payload.tenantId;
     const body = await request.json();
     const { id, basic_salary, hra, allowances, deductions, net_salary, status } = body;
 

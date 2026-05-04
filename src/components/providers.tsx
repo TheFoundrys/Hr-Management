@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { AppearanceHydrator } from '@/components/AppearanceHydrator';
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const { setUser, setLoading } = useAuthStore();
@@ -54,6 +55,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
+        <AppearanceHydrator />
         <AuthInitializer>{children}</AuthInitializer>
       </QueryClientProvider>
     </ThemeProvider>

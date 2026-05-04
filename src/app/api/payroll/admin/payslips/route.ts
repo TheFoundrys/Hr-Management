@@ -10,7 +10,8 @@ export async function GET(request: Request) {
     if (!token) return NextResponse.json({ error: 'Missing Credentials' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    if (!payload || !['ADMIN', 'HR', 'HOD', 'STAFF'].includes(payload.role)) {
+    const baseRole = (payload?.role || 'STAFF').toUpperCase();
+    if (!payload || !hasPermission(baseRole, 'MANAGE_PAYROLL')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -67,6 +68,7 @@ export async function GET(request: Request) {
 
     const employees = result.rows.map(emp => ({
       ...emp,
+      identifier: emp.university_id,
       universityId: emp.university_id,
       firstName: emp.first_name,
       lastName: emp.last_name,

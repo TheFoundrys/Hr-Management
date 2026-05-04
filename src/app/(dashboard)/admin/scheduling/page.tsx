@@ -67,7 +67,7 @@ export default function SchedulingPage() {
           <div className="lg:col-span-3 bg-surface-900 border border-surface-800 rounded-2xl p-6 shadow-sm">
              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-surface-400">Timetable Grid</h2>
-                <select value={selectedGroup} onChange={e => {setSelectedGroup(e.target.value); fetchGrid(e.target.value);}} className="bg-surface-950 border border-surface-800 rounded-xl px-4 py-2 text-xs font-bold text-white focus:border-primary-500 outline-none w-64">
+                <select value={selectedGroup} onChange={e => {setSelectedGroup(e.target.value); fetchGrid(e.target.value);}} className="bg-surface-950 border border-surface-800 rounded-xl px-4 py-2 text-xs font-bold text-white focus:border-primary-500 outline-none w-full min-w-0 max-w-full sm:max-w-xs sm:w-auto">
                    <option value="">Select Group...</option>
                    {data.groups?.map((g:any) => <option key={g.id} value={g.id}>{g.name} - {g.course_name}</option>)}
                 </select>

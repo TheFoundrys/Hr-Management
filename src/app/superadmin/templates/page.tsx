@@ -54,7 +54,7 @@ export default function TemplatesPage() {
           </p>
         </div>
         <button 
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-none font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
           <Plus size={16} strokeWidth={3} /> Define New Sector
         </button>
@@ -62,7 +62,7 @@ export default function TemplatesPage() {
 
       {/* Control Bar */}
       <div className="bg-card border border-border p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-         <div className="flex items-center gap-3 bg-muted/30 border border-border px-4 py-2.5 rounded-none flex-1 max-w-md shadow-inner focus-within:border-primary transition-all">
+         <div className="flex items-center gap-3 bg-muted/30 border border-border px-4 py-2.5 rounded-xl flex-1 max-w-md shadow-inner focus-within:border-primary transition-all">
             <Search size={16} className="text-muted-foreground" />
             <input 
               type="text" 
@@ -84,13 +84,13 @@ export default function TemplatesPage() {
         {loading ? (
           <div className="col-span-full py-40 text-center"><Loader2 className="animate-spin inline-block text-primary" size={40} /></div>
         ) : filtered.map(t => (
-          <div key={t.id} className="bg-card border border-border p-8 rounded-none hover:border-primary transition-all group relative overflow-hidden flex flex-col h-full">
+          <div key={t.id} className="bg-card border border-border p-8 rounded-xl hover:border-primary transition-all group relative overflow-hidden flex flex-col h-full">
             <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                {getIcon(t.org_type)}
             </div>
 
             <div className="space-y-4 flex-1">
-               <div className="flex items-center gap-2 px-3 py-1 bg-muted w-fit rounded-none">
+               <div className="flex items-center gap-2 px-3 py-1 bg-muted w-fit rounded-xl">
                   {getIcon(t.org_type)}
                   <span className="text-[9px] font-black uppercase tracking-widest">{t.org_type}</span>
                </div>

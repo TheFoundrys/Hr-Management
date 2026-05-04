@@ -20,18 +20,31 @@ export async function handleTenantOnboard(req: any) {
         custom_labels: hierarchy.label_vocabulary === 'custom' ? hierarchy.custom_labels : {}
       },
       modules: {
-        leave_management: modules.leave_management || false,
+        leave: modules.leave || modules.leave_management || false,
         attendance: modules.attendance || false,
         payroll: modules.payroll || false,
-        performance_review: modules.performance_review || false,
+        performance: modules.performance || modules.performance_review || false,
         recruitment: modules.recruitment || false,
         documents: modules.documents || false
+      },
+      branding: {
+        logo_url: org.logo_url || null,
+        accent_color: org.accent_color || '#2563eb', // Default blue
+        app_name: org.app_name || org.name
       },
       onboarding: {
         structure_source: structure.source || 'scratch',
         template_used: structure.template_id || null,
         completed: false
-      }
+      },
+      leave_policy: {
+        advance_notice_days: 0,
+        max_consecutive_days: 0,
+        dept_max_concurrent_approved: 2,
+        sick_leave_max_days_without_certificate: 2,
+        summary_text:
+          'Apply in advance where required; sick leave may need a medical certificate for longer spans. Half-day leaves support morning or afternoon sessions.',
+      },
     };
 
     const subdomain = org.subdomain || org.name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -44,10 +57,13 @@ export async function handleTenantOnboard(req: any) {
       RETURNING id
     `;
     
+    // Normalize tenant_type based on org_type if not provided
+    const tenantType = org.tenant_type || (['university', 'school', 'college'].includes(org.org_type) ? 'EDUCATION' : 'COMPANY');
+    
     await client.query(tenantQuery, [
       tenantId, org.name, subdomain, org.org_type, org.org_size, 
       org.address, org.country, org.timezone || 'Asia/Kolkata', 
-      org.logo_url, JSON.stringify(settings), org.tenant_type || 'COMPANY'
+      org.logo_url, JSON.stringify(settings), tenantType
     ]);
 
     // 2. Hash Admin Password

@@ -2,6 +2,34 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db/postgres';
 import { getTenantId } from '@/lib/utils/tenant';
 import { hasPermission } from '@/lib/auth/rbac';
+import { DEFAULT_LEAVE_POLICY, type LeavePolicySettings } from '@/lib/types/tenant';
+import { sendNewLeaveRequestToManagers } from '@/lib/mail/leaveNotifications';
+
+function calendarLeadDays(startYmd: string): number {
+  const [y, m, d] = startYmd.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((start.getTime() - today.getTime()) / 86400000);
+}
+
+function mergeLeavePolicy(
+  settings: Record<string, unknown> | null | undefined
+): Required<
+  Pick<
+    LeavePolicySettings,
+    | 'advance_notice_days'
+    | 'max_consecutive_days'
+    | 'dept_max_concurrent_approved'
+    | 'sick_leave_max_days_without_certificate'
+  >
+> {
+  const lp = settings?.leave_policy as LeavePolicySettings | undefined;
+  return {
+    ...DEFAULT_LEAVE_POLICY,
+    ...(lp || {}),
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -91,12 +119,63 @@ export async function POST(request: Request) {
       activeDeptId = empResult.rows[0].department_id;
     }
 
+    const tenantSettingsRes = await query('SELECT settings FROM tenants WHERE id = $1', [tenantId]);
+    const settingsRow = tenantSettingsRes.rows[0]?.settings;
+    const settingsParsed =
+      typeof settingsRow === 'string' ? JSON.parse(settingsRow) : settingsRow || {};
+    const leavePolicy = mergeLeavePolicy(settingsParsed as Record<string, unknown>);
+
     // 1. Calculate total days
     const start = new Date(startDate);
     const end = new Date(endDate);
     const totalDays = isHalfDay ? 0.5 : (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
 
     if (totalDays <= 0) return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+
+    const leadDays = calendarLeadDays(startDate);
+    if (leadDays < leavePolicy.advance_notice_days) {
+      return NextResponse.json(
+        {
+          error: `Leave must be applied at least ${leavePolicy.advance_notice_days} calendar day(s) before the start date.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      leavePolicy.max_consecutive_days > 0 &&
+      totalDays > leavePolicy.max_consecutive_days
+    ) {
+      return NextResponse.json(
+        {
+          error: `This request exceeds the maximum of ${leavePolicy.max_consecutive_days} consecutive day(s) per application.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const typeMeta = await query(
+      `SELECT UPPER(TRIM(code)) as code, LOWER(name) as name FROM leave_types WHERE id = $1 AND tenant_id = $2`,
+      [leaveTypeId, tenantId]
+    );
+    const ltRow = typeMeta.rows[0];
+    const isSickLike =
+      ltRow &&
+      (ltRow.code === 'SL' ||
+        String(ltRow.name || '').includes('sick') ||
+        String(ltRow.name || '').includes('medical'));
+    if (
+      isSickLike &&
+      totalDays > leavePolicy.sick_leave_max_days_without_certificate &&
+      !String(attachmentUrl || '').trim()
+    ) {
+      return NextResponse.json(
+        {
+          error: `Sick leave over ${leavePolicy.sick_leave_max_days_without_certificate} day(s) requires an attachment or medical certificate reference.`,
+        },
+        { status: 400 }
+      );
+    }
 
     // 2. Self-Healing Balance initialization
     let balanceResult = await query(
@@ -139,8 +218,14 @@ export async function POST(request: Request) {
       [activeDeptId, tenantId, startDate, endDate]
     );
 
-    if (quotaResult.rows.some(r => Number(r.count) >= 2)) {
-      return NextResponse.json({ error: 'Departmental leave quota exceeded (Max 2)' }, { status: 400 });
+    const concurrentApproved = Number(quotaResult.rows[0]?.count || 0);
+    if (concurrentApproved >= leavePolicy.dept_max_concurrent_approved) {
+      return NextResponse.json(
+        {
+          error: `Departmental leave quota exceeded (max ${leavePolicy.dept_max_concurrent_approved} overlapping approved leave(s) for this period).`,
+        },
+        { status: 400 }
+      );
     }
 
     // 4. Overlap check
@@ -177,6 +262,39 @@ export async function POST(request: Request) {
       RETURNING *`,
       [activeEmployeeUuid, leaveTypeId, tenantId, startDate, endDate, totalDays, reason, isHalfDay, halfDayType, substitutionUuid, attachmentUrl]
     );
+
+    const [tenantRow, empRow, approversRes] = await Promise.all([
+      query('SELECT name FROM tenants WHERE id = $1', [tenantId]),
+      query('SELECT first_name, last_name FROM employees WHERE id = $1', [activeEmployeeUuid]),
+      query(
+        `SELECT DISTINCT TRIM(email) AS email FROM users
+         WHERE tenant_id = $1 AND COALESCE(is_active, true) = true
+         AND email IS NOT NULL AND TRIM(email) <> ''
+         AND UPPER(REPLACE(role::text, '-', '_')) IN (
+           'SUPER_ADMIN','GLOBAL_ADMIN','ADMIN','HR_MANAGER','HR','HR_EXECUTIVE',
+           'MANAGER','HOD','PRINCIPAL','DIRECTOR'
+         )`,
+        [tenantId]
+      ),
+    ]);
+    const tenantName = tenantRow.rows[0]?.name || 'HR Portal';
+    const er = empRow.rows[0];
+    const employeeName = `${er?.first_name || ''} ${er?.last_name || ''}`.trim() || 'Employee';
+    const managerEmails = approversRes.rows
+      .map((r: { email?: string }) => String(r.email || '').trim())
+      .filter((e: string) => e.includes('@'));
+    const leaveTypeLabel = ltRow?.name ? String(ltRow.name).replace(/\b\w/g, (c) => c.toUpperCase()) : 'Leave';
+
+    await sendNewLeaveRequestToManagers({
+      managerEmails,
+      tenantName,
+      employeeName,
+      leaveTypeName: leaveTypeLabel,
+      startDate: String(startDate).slice(0, 10),
+      endDate: String(endDate).slice(0, 10),
+      totalDays,
+      reason: reason ?? null,
+    });
 
     return NextResponse.json({ success: true, request: result.rows[0] });
   } catch (error) {

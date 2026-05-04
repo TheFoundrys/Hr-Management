@@ -36,7 +36,7 @@ export async function GET(request: Request) {
           totalAbsent: empAttendance.filter((a) => a.status === 'ABSENT').length,
           totalLate: empAttendance.filter((a) => a.status === 'LATE').length,
           totalHalfDay: empAttendance.filter((a) => a.status === 'HALF_DAY').length,
-          totalLeave: empAttendance.filter((a) => a.status === 'ON-LEAVE').length,
+          totalLeave: empAttendance.filter((a) => a.status === 'ON_LEAVE').length,
           totalHours: empAttendance.reduce((sum, a) => sum + Number(a.working_hours || 0), 0).toFixed(2),
         };
       });

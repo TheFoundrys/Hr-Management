@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { FileText, Upload, Trash2, Loader2, FolderOpen, Link2, Copy, CheckCircle2, Clock, Eye, XCircle } from 'lucide-react';
+import { FileText, Upload, Trash2, Loader2, FolderOpen, Link2, Copy, CheckCircle2, Clock, Eye, XCircle, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { hasPermission } from '@/lib/auth/rbac';
 
@@ -30,6 +30,13 @@ interface OnboardingLink {
   submission_count: string;
 }
 
+interface OnboardingDocument {
+  id: string;
+  doc_type: string;
+  file_name: string;
+  file_size: number;
+}
+
 interface Submission {
   id: string;
   first_name: string;
@@ -39,7 +46,7 @@ interface Submission {
   status: string;
   submitted_at: string;
   link_type: string;
-  documents: { id: string; doc_type: string; file_name: string; file_size: number }[] | null;
+  documents: OnboardingDocument[] | null;
 }
 
 const CATEGORIES = ['ID_PROOF', 'CERTIFICATE', 'PAYSLIP', 'CONTRACT', 'RESUME', 'OTHER'];
@@ -64,6 +71,7 @@ export default function DocumentsPage() {
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [onbTab, setOnbTab] = useState<'links' | 'submissions'>('links');
+  const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
 
   useEffect(() => { if (pageTab === 'repository') fetchDocs(); }, [category, pageTab]);
   useEffect(() => { if (pageTab === 'onboarding') { fetchLinks(); fetchSubmissions(); } }, [pageTab]);
@@ -163,6 +171,26 @@ export default function DocumentsPage() {
     } catch (err) { console.error(err); }
   };
 
+  const toggleSubmissionExpand = (id: string) => {
+    setExpandedSubmissions(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const DOC_TYPE_LABELS: Record<string, string> = {
+    aadharPan: 'Aadhar / PAN',
+    payslips: 'Payslips',
+    educationalCertificates: 'Educational Certificates',
+    previousOfferLetter: 'Previous Offer Letter',
+    relievingExperienceLetters: 'Relieving / Experience Letters',
+    appraisalHikeLetters: 'Appraisal / Hike Letters',
+    photo: 'Photo',
+    resume: 'Resume',
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -197,7 +225,7 @@ export default function DocumentsPage() {
         <div className="space-y-8">
           <div className="flex gap-2">
             <button onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-none font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+              className="flex items-center gap-3 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
               <Upload size={16} strokeWidth={3} /> {uploading ? 'Syncing...' : 'Upload Asset'}
             </button>
             <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} />
@@ -227,7 +255,7 @@ export default function DocumentsPage() {
             ))}
           </div>
 
-          <div className="bg-card border border-border rounded-none shadow-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
             ) : docs.length === 0 ? (
@@ -369,27 +397,88 @@ export default function DocumentsPage() {
                 <tbody className="divide-y divide-border">
                   {submissions.length === 0 ? (
                     <tr><td colSpan={8} className="px-6 py-16 text-center text-muted-foreground text-sm">No submissions yet</td></tr>
-                  ) : submissions.map(s => (
-                    <tr key={s.id} className="hover:bg-muted/10">
-                      <td className="px-6 py-4 text-xs font-black uppercase">{s.first_name} {s.last_name}</td>
-                      <td className="px-6 py-4 text-[10px] font-bold text-muted-foreground">{s.email}</td>
-                      <td className="px-6 py-4 text-[10px] font-bold">{s.phone_number || '—'}</td>
-                      <td className="px-6 py-4"><span className="text-[9px] px-2 py-1 bg-muted font-black uppercase">{s.link_type}</span></td>
-                      <td className="px-6 py-4 text-xs font-black text-primary">{s.documents?.length || 0} files</td>
-                      <td className="px-6 py-4">
-                        <span className={`text-[9px] px-3 py-1 font-black uppercase ${s.status === 'approved' ? 'bg-green-500/10 text-green-400' : s.status === 'rejected' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{s.status}</span>
-                      </td>
-                      <td className="px-6 py-4 text-[10px] font-bold text-muted-foreground">{new Date(s.submitted_at).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-right">
-                        {s.status === 'pending' && (
-                          <div className="flex gap-2 justify-end">
-                            <button onClick={() => updateSubmissionStatus(s.id, 'approved')} className="p-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/20"><CheckCircle2 size={14} /></button>
-                            <button onClick={() => updateSubmissionStatus(s.id, 'rejected')} className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20"><XCircle size={14} /></button>
-                          </div>
+                  ) : submissions.map(s => {
+                    const isExpanded = expandedSubmissions.has(s.id);
+                    const docCount = s.documents?.length || 0;
+                    return (
+                      <>
+                        <tr key={s.id} className={`hover:bg-muted/10 transition-colors ${isExpanded ? 'bg-muted/5' : ''}`}>
+                          <td className="px-6 py-4 text-xs font-black uppercase">{s.first_name} {s.last_name}</td>
+                          <td className="px-6 py-4 text-[10px] font-bold text-muted-foreground">{s.email}</td>
+                          <td className="px-6 py-4 text-[10px] font-bold">{s.phone_number || '—'}</td>
+                          <td className="px-6 py-4"><span className="text-[9px] px-2 py-1 bg-muted font-black uppercase">{s.link_type}</span></td>
+                          <td className="px-6 py-4">
+                            {docCount > 0 ? (
+                              <button
+                                onClick={() => toggleSubmissionExpand(s.id)}
+                                className="flex items-center gap-1.5 text-xs font-black text-primary hover:text-primary/80 transition-colors group"
+                              >
+                                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                {docCount} file{docCount !== 1 ? 's' : ''}
+                              </button>
+                            ) : (
+                              <span className="text-xs font-bold text-muted-foreground">0 files</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`text-[9px] px-3 py-1 font-black uppercase ${s.status === 'approved' ? 'bg-green-500/10 text-green-400' : s.status === 'rejected' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{s.status}</span>
+                          </td>
+                          <td className="px-6 py-4 text-[10px] font-bold text-muted-foreground">{new Date(s.submitted_at).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 text-right">
+                            {s.status === 'pending' && (
+                              <div className="flex gap-2 justify-end">
+                                <button onClick={() => updateSubmissionStatus(s.id, 'approved')} className="p-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/20"><CheckCircle2 size={14} /></button>
+                                <button onClick={() => updateSubmissionStatus(s.id, 'rejected')} className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20"><XCircle size={14} /></button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && s.documents && s.documents.length > 0 && (
+                          <tr key={`${s.id}-docs`}>
+                            <td colSpan={8} className="px-0 py-0">
+                              <div className="bg-muted/20 border-t border-b border-border/50 px-10 py-4 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-3">Uploaded Documents</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {s.documents.map((doc: OnboardingDocument) => (
+                                    <div key={doc.id} className="flex items-center justify-between bg-card border border-border px-4 py-3 group hover:border-primary/30 transition-colors">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-8 h-8 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                          <FileText size={14} className="text-primary" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-black text-foreground uppercase tracking-tight truncate">{doc.file_name}</p>
+                                          <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{DOC_TYPE_LABELS[doc.doc_type] || doc.doc_type} Â· {formatSize(doc.file_size)}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1 flex-shrink-0 ml-3">
+                                        <a
+                                          href={`/api/onboarding/documents/${doc.id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                                          title="View"
+                                        >
+                                          <Eye size={14} />
+                                        </a>
+                                        <a
+                                          href={`/api/onboarding/documents/${doc.id}?download=1`}
+                                          download
+                                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                                          title="Download"
+                                        >
+                                          <Download size={14} />
+                                        </a>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

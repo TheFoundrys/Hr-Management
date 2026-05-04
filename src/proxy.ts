@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth/jwt';
-import { getRequiredPermissionForPath, hasPermission } from '@/lib/auth/rbac';
+import { getRequiredPermissionForPath, hasAnyPermission } from '@/lib/auth/rbac';
+import { canManageEmployeeLoginAccess } from '@/lib/auth/accessControl';
 
 const publicPaths = [
   '/login', '/register', '/forgot-password', '/reset-password',
   '/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', 
   '/api/auth/reset-password', '/api/auth/verify', '/api/verify',
-  '/api/biometric/push', '/api/attendance/ingest', '/api/tenants/onboard'
+  '/api/biometric/push', '/api/attendance/ingest', '/api/tenants/onboard',
+  '/onboard', '/api/onboarding/validate', '/api/onboarding/submit'
 ];
 
 export default async function proxy(request: NextRequest) {
@@ -51,11 +53,23 @@ export default async function proxy(request: NextRequest) {
 
   // Advanced RBAC Check
   const requiredPermission = getRequiredPermissionForPath(pathname);
-  if (requiredPermission && !hasPermission(payload.role, requiredPermission)) {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: `Forbidden: Requires ${requiredPermission} permission` }, { status: 403 });
+  if (requiredPermission) {
+    const accessControlBypass =
+      /^\/admin\/access-control(\/|$)/i.test(pathname) ||
+      /^\/api\/admin\/access-control\/users\/[^/]+\/?$/i.test(pathname) ||
+      /^\/api\/employees\/[^/]+\/access-role$/i.test(pathname);
+    const allowed =
+      hasAnyPermission(payload.role, requiredPermission) ||
+      (accessControlBypass && canManageEmployeeLoginAccess(payload.role));
+    if (!allowed) {
+      const requiredLabel = Array.isArray(requiredPermission)
+        ? requiredPermission.join(' or ')
+        : requiredPermission;
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: `Forbidden: Requires ${requiredLabel} permission` }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   // Attach user info to headers for downstream components

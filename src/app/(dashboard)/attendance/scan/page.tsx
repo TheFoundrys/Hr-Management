@@ -75,7 +75,7 @@ function ScanResult() {
             </div>
             <h1 className="text-2xl font-bold text-white">Access Denied</h1>
             <p className="text-danger-400 font-medium text-sm">{message}</p>
-            <p className="text-white/30 text-xs mt-4">Make sure you are on the university network and your QR hasn't expired.</p>
+            <p className="text-white/30 text-xs mt-4">Make sure you are on the authorized network and your QR hasn't expired.</p>
             <Link href="/profile/qr" className="block w-full py-3 mt-8 gradient-primary rounded-xl text-white font-semibold shadow-lg transition-all">
                Try Again
             </Link>

@@ -5,9 +5,10 @@ import {
   User, Mail, Phone, MapPin, Briefcase, GraduationCap, 
   CreditCard, ShieldCheck, Edit2, Plus, Trash2, Save, X, 
   Loader2, CheckCircle2, AlertCircle, Camera, FileText,
-  UserCheck, Globe, Calendar, Heart, Shield
+  UserCheck, Globe, Calendar, Heart, Shield, Palette
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { AppearanceSettingsPanel } from '@/components/appearance/AppearanceSettingsPanel';
 
 const TABS = [
   { id: 'primary', label: 'Primary Details', icon: User },
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'address', label: 'Addresses', icon: MapPin },
   { id: 'education', label: 'Education & Work', icon: GraduationCap },
   { id: 'identity', label: 'Identity', icon: ShieldCheck },
+  { id: 'appearance', label: 'Appearance', icon: Palette },
 ];
 
 const InputField = ({ label, name, state, setState, isEditing, type = 'text', placeholder = '', options = null }: any) => (
@@ -25,7 +27,7 @@ const InputField = ({ label, name, state, setState, isEditing, type = 'text', pl
         disabled={!isEditing}
         value={state[name] || ''}
         onChange={(e) => setState({ ...state, [name]: e.target.value })}
-        className="w-full px-3 py-2 bg-muted/20 border border-border rounded-none text-sm focus:ring-1 ring-primary outline-none transition-all disabled:opacity-60"
+        className="w-full px-3 py-2 bg-muted/20 border border-border rounded-xl text-sm focus:ring-1 ring-primary outline-none transition-all disabled:opacity-60"
       >
         <option value="">Select {label}</option>
         {options.map((opt: any) => (
@@ -39,7 +41,7 @@ const InputField = ({ label, name, state, setState, isEditing, type = 'text', pl
         placeholder={placeholder || `-Not Set-`}
         value={state[name] || ''}
         onChange={(e) => setState({ ...state, [name]: e.target.value })}
-        className="w-full px-3 py-2 bg-muted/20 border border-border rounded-none text-sm focus:ring-1 ring-primary outline-none transition-all disabled:opacity-60"
+        className="w-full px-3 py-2 bg-muted/20 border border-border rounded-xl text-sm focus:ring-1 ring-primary outline-none transition-all disabled:opacity-60"
       />
     )}
   </div>
@@ -108,9 +110,9 @@ export default function ProfilePage() {
   return (
     <div className="w-full py-6 px-4 space-y-6">
       {/* Compact Header */}
-      <div className="bg-card border border-border rounded-none p-6 shadow-sm">
+      <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="w-20 h-20 rounded-none bg-primary text-primary-foreground flex items-center justify-center font-bold text-3xl shrink-0">
+          <div className="w-20 h-20 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-3xl shrink-0">
             {profile?.name?.[0] || 'U'}
           </div>
           <div className="text-center md:text-left flex-1">
@@ -118,11 +120,11 @@ export default function ProfilePage() {
               {profile?.displayName || profile?.name}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {profile?.designation} • {profile?.department}
+              {profile?.designation} · {profile?.department}
             </p>
             <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-              <span className="px-2.5 py-1 bg-muted border border-border rounded-none text-[10px] font-bold text-foreground uppercase tracking-wider">{profile?.employee_id}</span>
-              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-none text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span className="px-2.5 py-1 bg-muted border border-border rounded-xl text-[10px] font-bold text-foreground uppercase tracking-wider">{profile?.employee_id}</span>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <UserCheck size={12} /> Verified
               </span>
             </div>
@@ -131,7 +133,7 @@ export default function ProfilePage() {
             {!isEditing ? (
               <button 
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-none font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm"
+                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm"
               >
                 <Edit2 size={16} /> Edit Profile
               </button>
@@ -139,14 +141,14 @@ export default function ProfilePage() {
               <div className="flex gap-2">
                 <button 
                   onClick={() => { setIsEditing(false); setEditData(profile); }}
-                  className="px-4 py-2 border border-border text-foreground rounded-none font-semibold text-sm hover:bg-muted"
+                  className="px-4 py-2 border border-border text-foreground rounded-xl font-semibold text-sm hover:bg-muted"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleSave}
                   disabled={submitting}
-                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-none font-semibold text-sm hover:bg-primary/90 shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 shadow-sm disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}
                   Save
@@ -158,33 +160,40 @@ export default function ProfilePage() {
       </div>
 
       {message && (
-        <div className={`p-3 rounded-none flex items-center gap-3 text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+        <div className={`p-3 rounded-xl flex items-center gap-3 text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
            {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
            <p className="font-medium">{message.text}</p>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Navigation Tabs */}
-        <div className="md:w-56 flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
+      <div className="flex flex-col gap-4">
+        {/* Section tabs — horizontal row (Keka-style), not sidebar column */}
+        <div
+          role="tablist"
+          aria-label="Profile sections"
+          className="flex flex-row flex-nowrap gap-1 overflow-x-auto pb-2 border-b border-border [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5"
+        >
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap flex items-center gap-3 px-4 py-3 rounded-none text-sm font-medium transition-all ${
-                activeTab === tab.id 
-                  ? 'bg-primary/10 text-primary' 
+              className={`shrink-0 inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all border border-transparent ${
+                activeTab === tab.id
+                  ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
-              <tab.icon size={18} />
-              {tab.label}
+              <tab.icon size={16} className="shrink-0 opacity-80" aria-hidden />
+              <span className="whitespace-nowrap">{tab.label}</span>
             </button>
           ))}
         </div>
 
         {/* Content Card */}
-        <div className="flex-1 bg-card border border-border rounded-none p-6 md:p-8 shadow-sm">
+        <div className="w-full bg-card border border-border rounded-xl p-6 md:p-8 shadow-sm">
           {activeTab === 'primary' && (
             <div className="space-y-6">
                <div className="border-b border-border pb-4">
@@ -235,7 +244,7 @@ export default function ProfilePage() {
                       disabled={!isEditing}
                       value={editData.address || ''}
                       onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                      className="w-full h-20 px-3 py-2 bg-muted/20 border border-border rounded-none text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
+                      className="w-full h-20 px-3 py-2 bg-muted/20 border border-border rounded-xl text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
                       placeholder="Street, City, State, Zip..."
                     />
                   </div>
@@ -245,7 +254,7 @@ export default function ProfilePage() {
                       disabled={!isEditing}
                       value={editData.permanentAddress || ''}
                       onChange={(e) => setEditData({ ...editData, permanentAddress: e.target.value })}
-                      className="w-full h-20 px-3 py-2 bg-muted/20 border border-border rounded-none text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
+                      className="w-full h-20 px-3 py-2 bg-muted/20 border border-border rounded-xl text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
                       placeholder="Street, City, State, Zip..."
                     />
                   </div>
@@ -267,14 +276,14 @@ export default function ProfilePage() {
                       disabled={!isEditing}
                       value={editData.professionalSummary || ''}
                       onChange={(e) => setEditData({ ...editData, professionalSummary: e.target.value })}
-                      className="w-full h-24 px-3 py-2 bg-muted/20 border border-border rounded-none text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
+                      className="w-full h-24 px-3 py-2 bg-muted/20 border border-border rounded-xl text-sm focus:ring-1 ring-primary outline-none transition-all resize-none disabled:opacity-60"
                       placeholder="Brief overview of your career..."
                     />
                   </div>
 
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Academic Qualifications</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 border border-border rounded-none bg-muted/10">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 border border-border rounded-xl bg-muted/10">
                         <InputField label="Degree" name="eduDegree" state={editData} setState={setEditData} isEditing={isEditing} />
                        <InputField label="Institution" name="eduUni" state={editData} setState={setEditData} isEditing={isEditing} />
                        <InputField label="Specialization" name="eduBranch" state={editData} setState={setEditData} isEditing={isEditing} />
@@ -295,7 +304,7 @@ export default function ProfilePage() {
                </div>
                
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="p-5 border border-border rounded-none bg-muted/10 space-y-4">
+                  <div className="p-5 border border-border rounded-xl bg-muted/10 space-y-4">
                      <div className="flex items-center gap-2 text-primary">
                         <ShieldCheck size={18} />
                         <h3 className="text-sm font-bold">Aadhaar Card</h3>
@@ -305,7 +314,7 @@ export default function ProfilePage() {
                         <CheckCircle2 size={12} /> Verified
                      </div>
                   </div>
-                  <div className="p-5 border border-border rounded-none bg-muted/10 space-y-4">
+                  <div className="p-5 border border-border rounded-xl bg-muted/10 space-y-4">
                      <div className="flex items-center gap-2 text-primary">
                         <CreditCard size={18} />
                         <h3 className="text-sm font-bold">PAN Card</h3>
@@ -316,6 +325,16 @@ export default function ProfilePage() {
                      </div>
                   </div>
                </div>
+            </div>
+          )}
+
+          {activeTab === 'appearance' && (
+            <div className="space-y-6">
+              <div className="border-b border-border pb-4">
+                <h2 className="text-lg font-bold">Appearance &amp; theme</h2>
+                <p className="text-sm text-muted-foreground">Same options as under Settings → Appearance in the sidebar.</p>
+              </div>
+              <AppearanceSettingsPanel showIntro={false} />
             </div>
           )}
         </div>

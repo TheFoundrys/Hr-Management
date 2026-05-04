@@ -39,10 +39,10 @@ export default function CreateTenantPage() {
       custom_labels: {}
     },
     modules: {
-      leave_management: true,
+      leave: true,
       attendance: true,
       payroll: true,
-      performance_review: false,
+      performance: false,
       recruitment: false,
       documents: true
     },
@@ -139,7 +139,7 @@ export default function CreateTenantPage() {
           
           {/* Section 1: Identity & Context */}
           <div className="lg:col-span-2 space-y-8">
-            <div className="bg-card border border-border p-8 rounded-none shadow-2xl space-y-8 relative overflow-hidden">
+            <div className="bg-card border border-border p-8 rounded-xl shadow-2xl space-y-8 relative overflow-hidden">
                <div className="absolute top-0 right-0 p-8 opacity-[0.03] -mr-4 -mt-4">
                   <Globe className="w-48 h-48 rotate-12" />
                </div>
@@ -164,7 +164,7 @@ export default function CreateTenantPage() {
                         placeholder="e.g. Apollo Hospitals"
                         value={formData.org.name}
                         onChange={(e) => updateOrg('name', e.target.value)}
-                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -178,7 +178,7 @@ export default function CreateTenantPage() {
                         placeholder="e.g. hospital, university, pharma"
                         value={formData.org.org_type}
                         onChange={(e) => updateOrg('org_type', e.target.value.toLowerCase())}
-                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -192,7 +192,7 @@ export default function CreateTenantPage() {
                         placeholder="apollo.com"
                         value={formData.org.domain}
                         onChange={(e) => updateOrg('domain', e.target.value)}
-                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -206,7 +206,7 @@ export default function CreateTenantPage() {
                         type="number"
                         value={formData.org.org_size}
                         onChange={(e) => updateOrg('org_size', parseInt(e.target.value))}
-                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -220,7 +220,7 @@ export default function CreateTenantPage() {
                         placeholder="Street, City, Country"
                         value={formData.org.address}
                         onChange={(e) => updateOrg('address', e.target.value)}
-                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-primary/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -228,7 +228,7 @@ export default function CreateTenantPage() {
             </div>
 
             {/* Section 2: Administrative Control */}
-            <div className="bg-card border border-border p-8 rounded-none shadow-2xl space-y-8 relative overflow-hidden">
+            <div className="bg-card border border-border p-8 rounded-xl shadow-2xl space-y-8 relative overflow-hidden">
                <div className="absolute top-0 right-0 p-8 opacity-[0.03] -mr-4 -mt-4">
                   <ShieldCheck className="w-48 h-48 -rotate-12" />
                </div>
@@ -253,7 +253,7 @@ export default function CreateTenantPage() {
                         placeholder="John Doe"
                         value={formData.admin.full_name}
                         onChange={(e) => updateAdmin('full_name', e.target.value)}
-                        className="w-full bg-muted/20 border border-border focus:border-amber-500/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-amber-500/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -268,7 +268,7 @@ export default function CreateTenantPage() {
                         placeholder="admin@apollo.com"
                         value={formData.admin.email}
                         onChange={(e) => updateAdmin('email', e.target.value)}
-                        className="w-full bg-muted/20 border border-border focus:border-amber-500/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-amber-500/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -283,7 +283,7 @@ export default function CreateTenantPage() {
                         placeholder="••••••••"
                         value={formData.admin.password}
                         onChange={(e) => updateAdmin('password', e.target.value)}
-                        className="w-full bg-muted/20 border border-border focus:border-amber-500/50 px-11 py-3.5 rounded-none outline-none transition-all font-bold text-sm"
+                        className="w-full bg-muted/20 border border-border focus:border-amber-500/50 px-11 py-3.5 rounded-xl outline-none transition-all font-bold text-sm"
                       />
                     </div>
                  </div>
@@ -293,7 +293,7 @@ export default function CreateTenantPage() {
 
           {/* Section 3: Architecture & Structure (Sidebar-style) */}
           <div className="space-y-8">
-            <div className="bg-muted/30 border border-border p-6 rounded-none space-y-8 h-full">
+            <div className="bg-muted/30 border border-border p-6 rounded-xl space-y-8 h-full">
               
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-indigo-500/10 flex items-center justify-center text-indigo-500">
@@ -373,7 +373,7 @@ export default function CreateTenantPage() {
         </div>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-6 rounded-none text-xs font-black uppercase tracking-widest flex items-center gap-4">
+          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-6 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-4">
             <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             {error}
           </div>
@@ -382,7 +382,7 @@ export default function CreateTenantPage() {
         <button
           disabled={loading}
           type="submit"
-          className={`w-full py-6 rounded-none font-black text-xl uppercase tracking-tighter transition-all flex items-center justify-center gap-4 shadow-2xl
+          className={`w-full py-6 rounded-xl font-black text-xl uppercase tracking-tighter transition-all flex items-center justify-center gap-4 shadow-2xl
             ${loading ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]'}
           `}
         >
